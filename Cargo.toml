@@ -1,0 +1,17 @@
+[package]
+name = "aoc2022"
+version = "0.0.1"
+edition = "2021"
+authors = ["drewtato"]
+description = "Advent of Code solutions in Rust for 2022"
+keywords = ["aoc"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+atoi = "2.0.0"
+clap = { version = "4.0.22", features = ["derive"] }
+html-escape = "0.2.12"
+itertools = "0.10.5"
+regex = "1.7.0"
+reqwest = { version = "0.11.12", features = ["blocking"] }

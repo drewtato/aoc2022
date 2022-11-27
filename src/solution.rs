@@ -4,6 +4,8 @@ use std::iter::Filter;
 
 use std::slice::Split;
 
+use crate::AocError;
+
 /// Trait to be implemented for each day.
 #[allow(unused_variables)]
 pub trait Solver: Sized {
@@ -24,7 +26,7 @@ pub trait Solver: Sized {
 	/// [`initialize`](Solver::initialize) and won't include `1` or `2`.
 	///
 	/// Returns `Err(())` if this part is unimplemented.
-	fn run_any(&mut self, part: u32) -> Result<String, ()>;
+	fn run_any(&mut self, part: u32) -> Result<String, AocError>;
 	/// Runs parts one and two. This includes a call to [`initialize`](Solver::initialize). This
 	/// will be used for full benchmarking.
 	fn run_all(file: Vec<u8>) -> (Self::AnswerOne, Self::AnswerTwo) {
@@ -46,7 +48,7 @@ pub trait Solver: Sized {
 		self.part_two()
 	}
 	/// Same as [`run_any`](Solver::run_any) but takes the debug flag. Runs `run_any` by default.
-	fn run_any_dbg(&mut self, part: u32, debug: u8) -> Result<String, ()> {
+	fn run_any_dbg(&mut self, part: u32, debug: u8) -> Result<String, AocError> {
 		self.run_any(part)
 	}
 	/// Same as [`run_all`](Solver::run_all) but takes the debug flag. Runs `run_all` by default.

@@ -2,6 +2,8 @@
 
 mod parse_bytes;
 use std::io::stdin;
+use std::iter::{Once, Repeat};
+use std::num::Wrapping;
 use std::str::FromStr;
 
 pub use parse_bytes::*;
@@ -33,6 +35,86 @@ where
 {
 	move |b| byte.eq(b)
 }
+
+/// Universal methods for wrapping values.
+///
+/// # Examples
+///
+/// ```
+/// # use aoc2022::helpers::Wrap;
+/// let i = 3;
+/// assert_eq!(Some(3), i.wrap(Some));
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::Wrap;
+/// let i = 3;
+/// assert_eq!(Box::new(3), i.wrap_box());
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::Wrap;
+/// let i = 3;
+/// assert_eq!(&3, i.refer());
+/// let mut i = 3;
+/// assert_eq!(&mut 3, i.refmut());
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::Wrap;
+/// let i = usize::MAX.wrap_wrapping() + 1.wrap_wrapping();
+/// assert_eq!(0, i.0);
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::Wrap;
+/// let mut i = 3.wrap_repeat();
+/// assert_eq!(Some(3), i.nth(1_000_000));
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::Wrap;
+/// let mut i = 3.wrap_once();
+/// assert_eq!(Some(3), i.next());
+/// assert_eq!(None, i.next());
+/// ```
+pub trait Wrap: Sized {
+	fn wrap<F, T>(self, func: F) -> T
+	where
+		F: FnOnce(Self) -> T,
+	{
+		func(self)
+	}
+
+	fn refer(&self) -> &Self {
+		self
+	}
+
+	fn refmut(&mut self) -> &mut Self {
+		self
+	}
+
+	fn wrap_box(self) -> Box<Self> {
+		Box::new(self)
+	}
+
+	fn wrap_wrapping(self) -> Wrapping<Self> {
+		Wrapping(self)
+	}
+
+	fn wrap_repeat(self) -> Repeat<Self>
+	where
+		Self: Clone,
+	{
+		std::iter::repeat(self)
+	}
+
+	fn wrap_once(self) -> Once<Self> {
+		std::iter::once(self)
+	}
+}
+
+impl<T> Wrap for T where T: Sized {}
 
 #[cfg(test)]
 mod tests {

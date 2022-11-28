@@ -1,10 +1,13 @@
 #![allow(dead_code)]
 
 mod parse_bytes;
+pub use std::cmp::Reverse;
 use std::io::stdin;
-use std::iter::{Once, Repeat};
-use std::num::Wrapping;
+pub use std::num::Wrapping;
 use std::str::FromStr;
+
+pub use ahash::{AHashMap as HashMap, AHashSet as HashSet, HashMapExt, HashSetExt};
+pub use std::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque};
 
 pub use parse_bytes::*;
 
@@ -102,15 +105,19 @@ pub trait Wrap: Sized {
 		Wrapping(self)
 	}
 
-	fn wrap_repeat(self) -> Repeat<Self>
+	fn wrap_repeat(self) -> std::iter::Repeat<Self>
 	where
 		Self: Clone,
 	{
 		std::iter::repeat(self)
 	}
 
-	fn wrap_once(self) -> Once<Self> {
+	fn wrap_once(self) -> std::iter::Once<Self> {
 		std::iter::once(self)
+	}
+
+	fn wrap_rev(self) -> Reverse<Self> {
+		Reverse(self)
 	}
 }
 

@@ -1,9 +1,11 @@
 use std::array;
+use std::collections::{BTreeSet, BinaryHeap, HashSet, LinkedList, VecDeque};
 use std::fmt::Display;
+use std::hash::Hash;
 
 use super::{FromBytes, ParseBytes};
 
-/// Error type for [`multi_parse`](MultiParse::multi_parse).
+/// Error type for [`multi_parse`](MultiParseBytes::multi_parse).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MultiParseError {
 	NotEnoughItems,
@@ -29,7 +31,7 @@ impl Display for MultiParseError {
 ///
 /// This works on any collection that implements [`MultiFromBytes`]. These include `Vec`, arrays, and
 /// tuples of length 0 to 12, when the item type or types in those collections implement
-/// [`FromStr`]. This trait and `MultiFromBytes` are analogous to [`str::parse`] and [`FromStr`].
+/// [`FromBytes`]. This trait and `MultiFromBytes` are analogous to [`str::parse`] and [`FromStr`](std::str::FromStr).
 ///
 /// # Examples
 ///
@@ -94,7 +96,7 @@ impl<I: IntoIterator<Item = S>, S: AsRef<[u8]>> MultiParseBytes for I {
 /// Trait allowing a type to be built from an iterator of [`u8`].
 ///
 /// It is best to implement this trait for collections, and then use
-/// [`multi_parse`](MultiParse::multi_parse) to invoke it. This is analogous to [`FromStr`] and
+/// [`multi_parse`](MultiParseBytes::multi_parse) to invoke it. This is analogous to [`FromStr`](std::str::FromStr) and
 /// [`str::parse`].
 ///
 /// # Examples
@@ -104,7 +106,7 @@ impl<I: IntoIterator<Item = S>, S: AsRef<[u8]>> MultiParseBytes for I {
 /// assert_eq!(tup, (3, "hello".to_string()));
 /// ```
 ///
-/// Here is the same thing, but using [`multi_parse`](MultiParse::multi_parse):
+/// Here is the same thing, but using [`multi_parse`](MultiParseBytes::multi_parse):
 /// ```
 /// # use aoc2022::helpers::{MultiParseBytes, is};
 /// let tup: (u16, String) = b"3,hello".split(is(&b',')).multi_parse().unwrap();
@@ -118,24 +120,29 @@ pub trait MultiFromBytes {
 		S: AsRef<[u8]>;
 }
 
-impl<T: FromBytes> MultiFromBytes for Vec<T> {
-	/// `Vec` can be built with [`multi_parse`](MultiParse::multi_parse).
-	///
-	/// # Errors
-	///
-	/// Since `Vec` can be of any length, the only possible error is
-	/// [`ParseError`](MultiParseError::ParseError).
-	fn multi_from_bytes<I, S>(iter: I) -> Result<Self, MultiParseError>
-	where
-		Self: Sized,
-		I: IntoIterator<Item = S>,
-		S: AsRef<[u8]>,
-	{
-		iter.into_iter()
-			.map(|s| s.as_ref().parse().ok_or(MultiParseError::ParseError))
-			.collect()
-	}
+macro_rules! impl_multi_from_bytes_collection {
+	($t:ty => $($gens:tt)*) => {
+		impl<$($gens)*> MultiFromBytes for $t {
+			fn multi_from_bytes<I, S>(iter: I) -> Result<Self, MultiParseError>
+			where
+				Self: Sized,
+				I: IntoIterator<Item = S>,
+				S: AsRef<[u8]>,
+			{
+				iter.into_iter()
+					.map(|s| s.as_ref().parse().ok_or(MultiParseError::ParseError))
+					.collect()
+			}
+		}
+	};
 }
+
+impl_multi_from_bytes_collection! { Vec<T> => T: FromBytes }
+impl_multi_from_bytes_collection! {	VecDeque<T> => T: FromBytes }
+impl_multi_from_bytes_collection! {	BTreeSet<T> => T: FromBytes + Ord }
+impl_multi_from_bytes_collection! {	BinaryHeap<T> => T: FromBytes + Ord }
+impl_multi_from_bytes_collection! {	LinkedList<T> => T: FromBytes }
+impl_multi_from_bytes_collection! {	HashSet<T> => T: FromBytes + Eq + Hash }
 
 impl<T: FromBytes, const N: usize> MultiFromBytes for [T; N] {
 	/// An array of any length can be built with [`multi_parse`](MultiParse::multi_parse).

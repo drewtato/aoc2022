@@ -9,6 +9,7 @@ keywords = ["aoc"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ahash = { version = "0.8.2", default-features = false, features = ["std", "compile-time-rng"] }
 atoi = "2.0.0"
 clap = { version = "4.0.22", features = ["derive"] }
 html-escape = "0.2.12"

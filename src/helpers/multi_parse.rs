@@ -36,28 +36,28 @@ impl Display for MultiParseError {
 /// # Examples
 ///
 /// With a [`Vec`]:
-/// ```
+/// ```ignore
 /// # use aoc2022::helpers::{MultiParseBytes, is};
 /// let vec: Vec<usize> = b"1,2,3".split(is(&b',')).multi_parse().unwrap();
 /// assert_eq!(vec, vec![1, 2, 3]);
 /// ```
 ///
 /// With an [prim@array]:
-/// ```
+/// ```ignore
 /// # use aoc2022::helpers::{MultiParseBytes, is};
 /// let arr: [usize; 3] = b"1,2,3".split(is(&b',')).multi_parse().unwrap();
 /// assert_eq!(arr, [1, 2, 3]);
 /// ```
 ///
 /// With a [tuple]:
-/// ```
+/// ```ignore
 /// # use aoc2022::helpers::{MultiParseBytes, is};
 /// let tup: (usize, usize, usize) = b"1,2,3".split(is(&b',')).multi_parse().unwrap();
 /// assert_eq!(tup, (1, 2, 3));
 /// ```
 ///
 /// Tuples can also have elements with different types:
-/// ```
+/// ```ignore
 /// # use aoc2022::helpers::{MultiParseBytes, is};
 /// let tup: (usize, String, f32) = b"1,2,3".split(is(&b',')).multi_parse().unwrap();
 /// assert_eq!(tup, (1, "2".to_string(), 3.0));
@@ -65,7 +65,7 @@ impl Display for MultiParseError {
 ///
 /// And both tuples and arrays can be immediately destructured. Usually if you pass these to (or
 /// return them from) a function at some point, their types can be inferred completely:
-/// ```
+/// ```ignore
 /// # use aoc2022::helpers::{MultiParseBytes, is};
 /// let (a, b, c): (char, f64, u8) = b"1,2,3".split(is(&b',')).multi_parse().unwrap();
 /// assert!(a == '1' && b == 2.0 && c == 3);
@@ -100,14 +100,14 @@ impl<I: IntoIterator<Item = S>, S: AsRef<[u8]>> MultiParseBytes for I {
 /// [`str::parse`].
 ///
 /// # Examples
-/// ```
+/// ```ignore
 /// # use aoc2022::helpers::{MultiFromBytes, is};
 /// let tup: (u16, String) = MultiFromBytes::multi_from_bytes(b"3,hello".split(is(&b','))).unwrap();
 /// assert_eq!(tup, (3, "hello".to_string()));
 /// ```
 ///
 /// Here is the same thing, but using [`multi_parse`](MultiParseBytes::multi_parse):
-/// ```
+/// ```ignore
 /// # use aoc2022::helpers::{MultiParseBytes, is};
 /// let tup: (u16, String) = b"3,hello".split(is(&b',')).multi_parse().unwrap();
 /// assert_eq!(tup, (3, "hello".to_string()));

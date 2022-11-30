@@ -162,7 +162,7 @@ impl Settings {
 			}
 		};
 
-		let input = Self::get_input(self, day)?;
+		let input = self.get_input(day)?;
 
 		print!("Initializing day {day}... ");
 		stdout().flush()?;
@@ -193,7 +193,7 @@ impl Settings {
 				if runner_debug > 0 {
 					eprintln!("The input file does not exist, fetching input from network");
 				}
-				Self::get_input_network(self, day, &input_path)?
+				self.get_input_network(day, &input_path)?
 			} else {
 				return Err(format!("No test input at `{input_name}`").into());
 			}

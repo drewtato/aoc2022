@@ -3,7 +3,7 @@ use std::str::FromStr;
 use atoi::FromRadix10SignedChecked;
 
 /// Examples:
-/// ```
+/// ```ignore
 /// # use aoc2022::helpers::FromBytes;
 /// let s: String = FromBytes::from_bytes(b"hello").unwrap();
 /// assert_eq!("hello", &s);

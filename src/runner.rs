@@ -1,11 +1,12 @@
+use chrono::{Duration as ChDuration, FixedOffset, NaiveDate, Utc};
 use clap::{ArgAction, Parser};
 use regex::Regex;
 use reqwest::blocking::Client;
 use reqwest::header::COOKIE;
 use std::fs::{create_dir_all, read_to_string, File};
-// use std::fmt::Write;
 use std::io::{self, stdout, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
+use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::solution::Solver;
@@ -176,22 +177,41 @@ impl Settings {
 
 	/// Get an input from the filesystem, or if it's not there, from the network.
 	pub fn get_input(&mut self, day: u32) -> Res<Vec<u8>> {
-		let runner_debug = self.runner_debug;
-		let test = self.test;
-		let input_name = if test == 0 {
+		let input_name = if self.test == 0 {
 			format!("./inputs/day{day:02}/input.txt")
 		} else {
-			format!("./inputs/day{day:02}/input{test}.txt")
+			format!("./inputs/day{day:02}/input{:02}.txt", self.test)
 		};
-		if runner_debug > 0 {
+		if self.runner_debug > 0 {
 			eprintln!("Reading input from {input_name}");
 		}
 
 		let input_path = PathBuf::from(input_name.clone());
 		let buf = if !input_path.exists() {
-			if test == 0 {
-				if runner_debug > 0 {
+			if self.test == 0 {
+				if self.runner_debug > 0 {
 					eprintln!("The input file does not exist, fetching input from network");
+				}
+				let until = Self::time_until_input_is_released(day);
+				if until > ChDuration::zero() {
+					if until < ChDuration::seconds(60) {
+						let wait = until.num_seconds() + 1;
+						eprintln!(
+							"Day {day} releases in {} seconds, waiting {} seconds.",
+							until.num_seconds(),
+							wait
+						);
+						thread::sleep(Duration::from_secs(wait as u64));
+					} else {
+						return Err(format!(
+							"Day {day} hasn't released yet. It releases {}:{:02}:{:02}:{:02} from now.",
+							until.num_days(),
+							until.num_hours() - until.num_days() * 24,
+							until.num_minutes() - until.num_hours() * 60,
+							until.num_seconds() - until.num_minutes() * 60
+						)
+						.into());
+					}
 				}
 				self.get_input_network(day, &input_path)?
 			} else {
@@ -283,16 +303,15 @@ impl Settings {
 		day: u32,
 		parts: &[u32],
 	) -> Result<Duration, io::Error> {
-		let debug = self.debug;
 		let (init_time, mut sol) =
-			time_fn(|| crate::days::day01::Solution::initialize_dbg(file, debug));
+			time_fn(|| crate::days::day01::Solution::initialize_dbg(file, self.debug));
 		println!("took {:?}", init_time);
 
 		Ok(if parts.is_empty() {
 			print!("Running day {day} part 1... ");
 			stdout().flush()?;
 
-			let (p1_time, p1) = time_fn(|| sol.part_one_dbg(debug));
+			let (p1_time, p1) = time_fn(|| sol.part_one_dbg(self.debug));
 
 			println!("took {p1_time:?}",);
 			println!("d{day:02}p1: {p1}",);
@@ -300,7 +319,7 @@ impl Settings {
 			print!("Running day {day} part 2... ");
 			stdout().flush()?;
 
-			let (p2_time, p2) = time_fn(|| sol.part_two_dbg(debug));
+			let (p2_time, p2) = time_fn(|| sol.part_two_dbg(self.debug));
 
 			println!("took {p2_time:?}");
 			println!("d{day:02}p2: {p2}");
@@ -314,15 +333,15 @@ impl Settings {
 
 				let (time, ans) = match part {
 					1 => {
-						let (time, ans) = time_fn(|| sol.part_one_dbg(debug));
+						let (time, ans) = time_fn(|| sol.part_one_dbg(self.debug));
 						(time, ans.to_string())
 					}
 					2 => {
-						let (time, ans) = time_fn(|| sol.part_two_dbg(debug));
+						let (time, ans) = time_fn(|| sol.part_two_dbg(self.debug));
 						(time, ans.to_string())
 					}
 					p => {
-						if let (time, Ok(s)) = time_fn(|| sol.run_any_dbg(p, debug)) {
+						if let (time, Ok(s)) = time_fn(|| sol.run_any_dbg(p, self.debug)) {
 							(time, s)
 						} else {
 							println!("Day {day} did not include a part {p}, skipping.");
@@ -358,6 +377,33 @@ impl Settings {
 	/// all necessary parts in sequence and times it as a whole.
 	pub fn bench(&self) -> Res<()> {
 		todo!()
+	}
+
+	/// Returns `None` if the input is released, otherwise returns the time until release. Returns
+	/// `None` if the time cannot be determined.
+	///
+	/// # Warning
+	///
+	/// This is likely to break (by not allowing downloading of the puzzle for an extra hour) if the
+	/// United States decides to remove time changes in favor of sticking to Daylight Saving Time,
+	/// and Eric Wastl continues to keep AoC on US-East time. In such an event, change
+	/// `ERIC_TIME_OFFSET` to `-4`.
+	// Note: chrono is actually way more confusing than I thought. Idk if this is the correct way to
+	// use it but it seems to work.
+	pub fn time_until_input_is_released(day: u32) -> ChDuration {
+		const ERIC_TIME_OFFSET: i32 = -5;
+
+		let t = Utc::now().naive_utc();
+
+		let release = NaiveDate::from_ymd_opt(YEAR as _, 12, day)
+			.unwrap()
+			.and_hms_opt(0, 0, 0)
+			.unwrap()
+			.and_local_timezone(FixedOffset::east_opt(ERIC_TIME_OFFSET * 60 * 60).unwrap())
+			.unwrap()
+			.naive_utc();
+
+		release - t
 	}
 }
 

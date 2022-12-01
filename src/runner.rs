@@ -278,7 +278,7 @@ impl Settings {
 		for (i, code) in regex.captures_iter(&text).enumerate() {
 			let i = i + 1;
 			let code = &code[1];
-			let test_path = path.parent().unwrap().join(format!("input{i}.txt"));
+			let test_path = path.parent().unwrap().join(format!("input{i:02}.txt"));
 			let file = File::create(test_path)?;
 			let mut file = BufWriter::new(file);
 			html_escape::decode_html_entities_to_writer(code, &mut file)?;

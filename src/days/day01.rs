@@ -13,15 +13,17 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>) -> Self {
-		let r = Regex::new("\n\n").unwrap();
-		let split_file = r.split(&file);
-
 		let mut best_4 = [0; 4];
+		let mut last_num = 0;
 
-		for chunk in split_file {
-			let n = chunk.lines().map(|line| line.parse().unwrap()).self_sum();
-			best_4[0] = n;
-			best_4.sort_unstable();
+		for chunk in file.lines() {
+			if chunk.is_empty() {
+				best_4[0] = last_num;
+				best_4.sort_unstable();
+				last_num = 0;
+			} else {
+				last_num += chunk.parse::<i32>().unwrap();
+			}
 		}
 
 		Self {

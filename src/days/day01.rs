@@ -13,22 +13,31 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>) -> Self {
-		let mut best_4 = [0; 4];
-		let mut last_num = 0;
+		let mut best_3 = [0; 3];
+		let mut current_num = 0;
 
 		for chunk in file.lines() {
 			if chunk.is_empty() {
-				best_4[0] = last_num;
-				best_4.sort_unstable();
-				last_num = 0;
+				let last_num = current_num;
+				current_num = 0;
+				if last_num < best_3[0] {
+					continue;
+				}
+				best_3[0] = last_num;
+				if last_num < best_3[1] {
+					continue;
+				}
+				best_3.swap(0, 1);
+				if last_num < best_3[2] {
+					continue;
+				}
+				best_3.swap(1, 2);
 			} else {
-				last_num += chunk.parse::<i32>().unwrap();
+				current_num += chunk.parse::<i32>().unwrap();
 			}
 		}
 
-		Self {
-			best_3: [best_4[1], best_4[2], best_4[3]],
-		}
+		Self { best_3 }
 	}
 
 	fn part_one(&mut self) -> Self::AnswerOne {

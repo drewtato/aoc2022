@@ -379,7 +379,7 @@ impl Settings {
 	}
 
 	/// Benchmark a day, or all if the day is 0. Will load all inputs from disk first, then runs
-	/// all necessary parts in sequence and times it as a whole.
+	/// all necessary parts in sequence and time it as a whole.
 	pub fn bench(&self) -> Res<()> {
 		todo!()
 	}

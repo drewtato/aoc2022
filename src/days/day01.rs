@@ -18,20 +18,11 @@ impl Solver for Solution {
 
 		for chunk in file.lines() {
 			if chunk.is_empty() {
-				let last_num = current_num;
+				if current_num > best_3[0] {
+					best_3[0] = current_num;
+					best_3.sort_unstable();
+				}
 				current_num = 0;
-				if last_num < best_3[0] {
-					continue;
-				}
-				best_3[0] = last_num;
-				if last_num < best_3[1] {
-					continue;
-				}
-				best_3.swap(0, 1);
-				if last_num < best_3[2] {
-					continue;
-				}
-				best_3.swap(1, 2);
 			} else {
 				current_num += chunk.parse::<i32>().unwrap();
 			}
@@ -45,7 +36,7 @@ impl Solver for Solution {
 	}
 
 	fn part_two(&mut self) -> Self::AnswerTwo {
-		self.best_3.into_iter().self_sum()
+		self.best_3.into_iter().sum_self()
 	}
 
 	fn run_any(&mut self, part: u32) -> Res<String> {

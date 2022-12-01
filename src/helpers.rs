@@ -1,4 +1,4 @@
-pub use crate::{AocError, Grid, InputData, Res, Solver};
+pub use crate::{AocError, Res, Solver};
 pub use itertools::Itertools;
 pub use regex::bytes::Regex;
 
@@ -20,6 +20,9 @@ pub use neighbors::*;
 mod multi_parse;
 pub use multi_parse::*;
 
+mod input_data;
+pub use input_data::*;
+
 pub fn read_value<T>() -> Result<T, T::Err>
 where
 	T: FromStr,
@@ -31,7 +34,7 @@ pub trait SelfSum: Iterator + Sized
 where
 	Self::Item: AddAssign + Default + Sized,
 {
-	fn self_sum(self) -> Self::Item {
+	fn sum_self(self) -> Self::Item {
 		self.fold(Default::default(), |mut left, right| {
 			left += right;
 			left

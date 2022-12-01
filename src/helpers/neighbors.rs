@@ -2,7 +2,7 @@ use std::array;
 
 use std::iter::Flatten;
 
-use crate::Grid;
+use crate::helpers::Grid;
 
 pub type Neighbors<'a, T> = NeighborsExtra<'a, 3, 3, T>;
 

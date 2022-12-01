@@ -7,7 +7,7 @@
 pub const YEAR: u32 = 2022;
 pub type Res<T> = Result<T, AocError>;
 pub mod solution;
-pub use solution::{Grid, InputData, Solver};
+pub use solution::Solver;
 mod error;
 pub use error::AocError;
 pub mod helpers;

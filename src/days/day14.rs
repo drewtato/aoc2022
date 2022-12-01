@@ -1,8 +1,6 @@
 #![allow(unused)]
 
-use crate::{helpers::*, AocError, Grid, InputData, Res, Solver};
-use itertools::Itertools;
-use regex::Regex;
+use crate::helpers::*;
 
 type A1 = impl std::fmt::Display;
 type A2 = impl std::fmt::Display;

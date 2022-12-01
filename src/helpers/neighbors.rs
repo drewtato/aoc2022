@@ -4,30 +4,11 @@ use std::iter::Flatten;
 
 use crate::Grid;
 
-#[derive(Debug, Clone)]
-pub struct GridNeighborsIter<'a, T, F> {
-	pub(crate) y: usize,
-	pub(crate) x: usize,
-	pub(crate) grid: &'a Grid<T>,
-	pub(crate) transform: F,
-}
-
-impl<'a, T, F> GridNeighborsIter<'a, T, F> {
-	pub fn new(grid: &'a Grid<T>, transform: F) -> Self {
-		Self {
-			y: 0,
-			x: 0,
-			grid,
-			transform,
-		}
-	}
-}
-
 pub type Neighbors<'a, T> = NeighborsExtra<'a, 3, 3, T>;
 
 pub type NeighborsExtra<'a, const Y: usize, const X: usize, T> = [[Option<&'a T>; X]; Y];
 
-pub(crate) trait GetNeighbors {
+pub trait GetNeighbors {
 	type Neighbor;
 
 	fn neighbors(&self, y: usize, x: usize) -> Neighbors<Self::Neighbor> {
@@ -79,7 +60,7 @@ pub(crate) trait GetNeighbors {
 	}
 }
 
-pub(crate) type NeighborIter<'a, T, const Y: usize, const X: usize> =
+type NeighborIter<'a, T, const Y: usize, const X: usize> =
 	Flatten<Flatten<std::array::IntoIter<[Option<&'a T>; X], Y>>>;
 
 impl<T> GetNeighbors for Grid<T> {

@@ -1,8 +1,12 @@
+use std::process::exit;
+
 use aoc2022::runner::Settings;
-use aoc2022::Res;
 use clap::Parser;
 
-fn main() -> Res<()> {
+fn main() {
 	let mut settings = Settings::parse();
-	settings.run()
+	if let Err(e) = settings.run() {
+		eprintln!("{e}");
+		exit(1);
+	}
 }

@@ -1,9 +1,12 @@
-#![allow(dead_code)]
+pub use crate::{AocError, Grid, InputData, Res, Solver};
+pub use itertools::Itertools;
+pub use regex::bytes::Regex;
 
 mod parse_bytes;
 pub use std::cmp::Reverse;
 use std::io::stdin;
 pub use std::num::Wrapping;
+use std::ops::AddAssign;
 use std::str::FromStr;
 
 pub use ahash::{AHashMap as HashMap, AHashSet as HashSet, HashMapExt, HashSetExt};
@@ -22,6 +25,25 @@ where
 	T: FromStr,
 {
 	stdin().lines().next().unwrap().unwrap().trim().parse()
+}
+
+pub trait SelfSum: Iterator + Sized
+where
+	Self::Item: AddAssign + Default + Sized,
+{
+	fn self_sum(self) -> Self::Item {
+		self.fold(Default::default(), |mut left, right| {
+			left += right;
+			left
+		})
+	}
+}
+
+impl<I> SelfSum for I
+where
+	I: Iterator + Sized,
+	Self::Item: AddAssign + Default + Sized,
+{
 }
 
 /// Returns a curried function that compares a value to another value.

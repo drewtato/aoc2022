@@ -10,7 +10,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::solution::Solver;
-use crate::{Res, YEAR};
+use crate::{AocError, Res, YEAR};
 
 /// Settings for running AoC. Usually created with [`clap::Parser::parse`].
 #[derive(Debug, Parser)]
@@ -203,19 +203,15 @@ impl Settings {
 						);
 						thread::sleep(Duration::from_secs(wait as u64));
 					} else {
-						return Err(format!(
-							"Day {day} hasn't released yet. It releases {}:{:02}:{:02}:{:02} from now.",
-							until.num_days(),
-							until.num_hours() - until.num_days() * 24,
-							until.num_minutes() - until.num_hours() * 60,
-							until.num_seconds() - until.num_minutes() * 60
-						)
-						.into());
+						return Err(crate::AocError::HasNotReleasedYet {
+							day,
+							duration: until,
+						});
 					}
 				}
 				self.get_input_network(day, &input_path)?
 			} else {
-				return Err(format!("No test input at `{input_name}`").into());
+				return Err(crate::AocError::NoTestInputFound { path: input_name });
 			}
 		} else {
 			let mut file = File::open(input_path)?;
@@ -243,14 +239,11 @@ impl Settings {
 			.get(url)
 			.header(COOKIE, format!("session={api_key}"))
 			.send()?;
-		let status = req.status();
-		if !status.is_success() {
-			eprintln!(
-				"Couldn't fetch input from network. Status: {}\nContent:\n{}",
-				status,
-				req.text()?
-			);
-			return Err("Failed to make network request.".into());
+		if !req.status().is_success() {
+			return Err(AocError::InputResponse {
+				status: req.status(),
+				response: req.text()?,
+			});
 		}
 		let data = req.bytes()?.to_vec();
 
@@ -267,12 +260,10 @@ impl Settings {
 			// .header(COOKIE, format!("session={api_key}"))
 			.send()?;
 		if !req.status().is_success() {
-			let msg = format!(
-				"Couldn't fetch prompt from network. Status {}, content:\n{}",
-				req.status(),
-				req.text()?
-			);
-			return Err(msg.into());
+			return Err(AocError::PromptResponse {
+				status: req.status(),
+				response: req.text()?,
+			});
 		}
 		let text = req.text()?;
 
@@ -303,8 +294,7 @@ impl Settings {
 		day: u32,
 		parts: &[u32],
 	) -> Result<Duration, io::Error> {
-		let (init_time, mut sol) =
-			time_fn(|| crate::days::day01::Solution::initialize_dbg(file, self.debug));
+		let (init_time, mut sol) = time_fn(|| S::initialize_dbg(file, self.debug));
 		println!("took {:?}", init_time);
 
 		Ok(if parts.is_empty() {
@@ -359,16 +349,18 @@ impl Settings {
 	}
 
 	/// Parses a single day command-line argument.
-	pub fn parse_day_arg<S: AsRef<str>>(s: S) -> Result<(u32, Vec<u32>), String> {
+	pub fn parse_day_arg<S: AsRef<str>>(s: S) -> Res<(u32, Vec<u32>)> {
 		let s = s.as_ref();
 		let mut parts = s.split('.').map(|part| {
-			part.parse()
-				.map_err(|_| format!("Could not parse `{part}` as integer in argument `{s}`"))
+			part.parse().map_err(|_| AocError::Parse {
+				part: part.to_string(),
+				arg: s.to_string(),
+			})
 		});
 
 		let day = parts
 			.next()
-			.ok_or_else(|| format!("No day specified in argument `{s}`"))??;
+			.ok_or(AocError::NoDaySpecified { arg: s.to_string() })??;
 		let parts = parts.collect::<Result<_, _>>()?;
 		Ok((day, parts))
 	}

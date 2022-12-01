@@ -5,7 +5,7 @@ type A2 = impl std::fmt::Display;
 
 #[derive(Debug)]
 pub struct Solution {
-	input: Vec<Vec<i32>>,
+	best_3: [i32; 3],
 }
 
 impl Solver for Solution {
@@ -14,32 +14,27 @@ impl Solver for Solution {
 
 	fn initialize(file: Vec<u8>) -> Self {
 		let r = Regex::new("\n\n").unwrap();
-		let input = r
-			.split(&file)
-			.map(|chunk| chunk.lines().map(|line| line.parse().unwrap()).collect())
-			.collect();
+		let split_file = r.split(&file);
 
-		Self { input }
+		let mut best_4 = [0; 4];
+
+		for chunk in split_file {
+			let n = chunk.lines().map(|line| line.parse().unwrap()).self_sum();
+			best_4[0] = n;
+			best_4.sort_unstable();
+		}
+
+		Self {
+			best_3: [best_4[1], best_4[2], best_4[3]],
+		}
 	}
 
 	fn part_one(&mut self) -> Self::AnswerOne {
-		self.input
-			.iter()
-			.map(|v| v.iter().copied().self_sum())
-			.max()
-			.unwrap()
+		*self.best_3.last().unwrap()
 	}
 
 	fn part_two(&mut self) -> Self::AnswerTwo {
-		let mut top_3 = [0; 4];
-
-		for v in &self.input {
-			let sum = v.iter().copied().self_sum();
-			top_3[0] = sum;
-			top_3.sort_unstable();
-		}
-
-		top_3[1..4].iter().copied().self_sum()
+		self.best_3.into_iter().self_sum()
 	}
 
 	fn run_any(&mut self, part: u32) -> Res<String> {

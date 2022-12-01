@@ -1,6 +1,6 @@
 use chrono::{Duration as ChDuration, FixedOffset, NaiveDate, Utc};
 use clap::{ArgAction, Parser};
-use regex::Regex;
+use regex::bytes::Regex;
 use reqwest::blocking::Client;
 use reqwest::header::COOKIE;
 use std::fs::{create_dir_all, read_to_string, File};
@@ -11,6 +11,14 @@ use std::time::{Duration, Instant};
 
 use crate::solution::Solver;
 use crate::{AocError, Res, YEAR};
+
+/// User agent (see [Eric's post on the
+/// subreddit](https://www.reddit.com/r/adventofcode/comments/z9dhtd))
+const USER_AGENT: &str = "\
+	drewtato-aoc-runner-2022 \
+	at github.com/drewtato/aoc2022 \
+	by 15526875+drewtato@users.noreply.github.com\
+";
 
 /// Settings for running AoC. Usually created with [`clap::Parser::parse`].
 #[derive(Debug, Parser)]
@@ -234,7 +242,9 @@ impl Settings {
 		if self.runner_debug > 0 {
 			eprintln!("Fetching {url}");
 		}
-		let client = self.client.get_or_insert_with(Default::default);
+		let client = self
+			.client
+			.get_or_insert_with(|| Client::builder().user_agent(USER_AGENT).build().unwrap());
 		let req = client
 			.get(url)
 			.header(COOKIE, format!("session={api_key}"))
@@ -265,11 +275,11 @@ impl Settings {
 				response: req.text()?,
 			});
 		}
-		let text = req.text()?;
+		let text = req.bytes()?;
 
 		// Save prompt
 		let prompt_path = path.parent().unwrap().join("prompt.html");
-		File::create(prompt_path)?.write_all(text.as_bytes())?;
+		File::create(prompt_path)?.write_all(&text)?;
 
 		// Save each code block as a test case
 		let regex = self
@@ -281,7 +291,10 @@ impl Settings {
 			let test_path = path.parent().unwrap().join(format!("input{i:02}.txt"));
 			let file = File::create(test_path)?;
 			let mut file = BufWriter::new(file);
-			html_escape::decode_html_entities_to_writer(code, &mut file)?;
+			html_escape::decode_html_entities_to_writer(
+				std::str::from_utf8(code).map_err(|_| AocError::NonUtf8InPromptCodeBlock)?,
+				&mut file,
+			)?;
 		}
 
 		Ok(data)

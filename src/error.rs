@@ -43,4 +43,6 @@ pub enum AocError {
 	NoDaySpecified { arg: String },
 	#[error("Could not parse `{part}` as integer in argument `{arg}`")]
 	Parse { part: String, arg: String },
+	#[error("Non-UTF-8 data found in code block on the prompt page")]
+	NonUtf8InPromptCodeBlock,
 }

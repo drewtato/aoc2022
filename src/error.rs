@@ -45,4 +45,6 @@ pub enum AocError {
 	Parse { part: String, arg: String },
 	#[error("Non-UTF-8 data found in code block on the prompt page")]
 	NonUtf8InPromptCodeBlock,
+	#[error("Non-UTF-8 data found in solution")]
+	NonUtf8InSolution,
 }

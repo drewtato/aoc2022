@@ -70,17 +70,6 @@ impl Settings {
 		} = self;
 		let runner_time = Instant::now();
 
-		if bench > 0 {
-			if runner_debug > 0 {
-				eprintln!("Running benchmark with {bench} cycles");
-			}
-			self.bench()?;
-
-			if runner_debug > 0 {
-				eprintln!("Finished benchmark");
-			}
-		}
-
 		if days.is_empty() {
 			eprintln!("No days specified. Use `--help` for more.");
 			return Ok(());
@@ -89,38 +78,51 @@ impl Settings {
 		if runner_debug > 0 {
 			eprintln!("Parsing day arguments");
 		}
-		let days: Vec<_> = days
+		let days = days
 			.iter()
 			.map(Self::parse_day_arg)
-			.collect::<Result<_, _>>()?;
+			.collect::<Result<Vec<_>, _>>()?;
 
 		if runner_debug > 0 {
 			eprintln!("Running days");
 		}
 
-		let mut times = Duration::ZERO;
-		for &(day, ref parts) in &days {
-			if day == 0 {
-				if runner_debug > 1 {
-					eprintln!("Running all days");
-				}
-				for day in 1..=25 {
+		let times = if bench > 0 {
+			if runner_debug > 0 {
+				eprintln!("Running benchmark with {bench} cycles");
+			}
+			let times = self.benchmark(days)?;
+
+			if runner_debug > 0 {
+				eprintln!("Finished benchmark");
+			}
+
+			times
+		} else {
+			let mut times = Duration::ZERO;
+			for &(day, ref parts) in &days {
+				if day == 0 {
+					if runner_debug > 1 {
+						eprintln!("Running all days");
+					}
+					for day in 1..=25 {
+						times += self.run_day(day, parts)?;
+					}
+					if runner_debug > 1 {
+						eprintln!("Finished all days");
+					}
+				} else {
+					if runner_debug > 1 {
+						eprintln!("Running day {day} with parts {parts:?}");
+					}
 					times += self.run_day(day, parts)?;
 				}
-				if runner_debug > 1 {
-					eprintln!("Finished all days");
-				}
-			} else {
-				if runner_debug > 1 {
-					eprintln!("Running day {day} with parts {parts:?}");
-				}
-				times += self.run_day(day, parts)?;
 			}
-		}
-
-		if days.len() > 1 {
-			println!("Time for all days: {times:?}",);
-		}
+			if days.len() > 1 {
+				println!("Time for all days: {times:?}",);
+			}
+			times
+		};
 
 		if runner_debug > 0 {
 			let elapsed = runner_time.elapsed();
@@ -300,6 +302,57 @@ impl Settings {
 		Ok(data)
 	}
 
+	/// Run the solver for a day. Returns the time taken to solve and the solutions.
+	pub fn solver_quiet<S: Solver>(
+		&self,
+		file: Vec<u8>,
+		day: u32,
+		parts: &[u32],
+	) -> Result<(Duration, Vec<String>), io::Error> {
+		let mut solutions = Vec::new();
+
+		let (init_time, mut sol) = time_fn(|| S::initialize_dbg(file, self.debug));
+
+		Ok(if parts.is_empty() {
+			let (p1_time, p1) = time_fn(|| sol.part_one_dbg(self.debug));
+
+			let (p2_time, p2) = time_fn(|| sol.part_two_dbg(self.debug));
+
+			let times = init_time + p1_time + p2_time;
+			solutions.push(p1.to_string());
+			solutions.push(p2.to_string());
+
+			(times, solutions)
+		} else {
+			let mut times = Duration::ZERO;
+			for &part in parts {
+				let (time, ans) = match part {
+					1 => {
+						let (time, ans) = time_fn(|| sol.part_one_dbg(self.debug));
+						(time, ans.to_string())
+					}
+					2 => {
+						let (time, ans) = time_fn(|| sol.part_two_dbg(self.debug));
+						(time, ans.to_string())
+					}
+					p => {
+						if let (time, Ok(s)) = time_fn(|| sol.run_any_dbg(p, self.debug)) {
+							(time, s)
+						} else {
+							println!("Day {day} did not include a part {p}, skipping.");
+							continue;
+						}
+					}
+				};
+
+				times += time;
+				solutions.push(ans);
+			}
+
+			(times, solutions)
+		})
+	}
+
 	/// Run the solver for a day and print info. Returns the time taken to solve.
 	pub fn solver<S: Solver>(
 		&self,
@@ -380,8 +433,69 @@ impl Settings {
 
 	/// Benchmark a day, or all if the day is 0. Will load all inputs from disk first, then runs
 	/// all necessary parts in sequence and time it as a whole.
-	pub fn bench(&self) -> Res<()> {
-		todo!()
+	pub fn benchmark(&mut self, days: Vec<(u32, Vec<u32>)>) -> Res<Duration> {
+		let mut total_times = Duration::ZERO;
+		let mut answers = Vec::new();
+
+		for (day, parts) in days {
+			let solver = {
+				use crate::days::*;
+				match day {
+					1 => Self::solver_quiet::<day01::Solution>,
+					2 => Self::solver_quiet::<day02::Solution>,
+					3 => Self::solver_quiet::<day03::Solution>,
+					4 => Self::solver_quiet::<day04::Solution>,
+					5 => Self::solver_quiet::<day05::Solution>,
+					6 => Self::solver_quiet::<day06::Solution>,
+					7 => Self::solver_quiet::<day07::Solution>,
+					8 => Self::solver_quiet::<day08::Solution>,
+					9 => Self::solver_quiet::<day09::Solution>,
+					10 => Self::solver_quiet::<day10::Solution>,
+					11 => Self::solver_quiet::<day11::Solution>,
+					12 => Self::solver_quiet::<day12::Solution>,
+					13 => Self::solver_quiet::<day13::Solution>,
+					14 => Self::solver_quiet::<day14::Solution>,
+					15 => Self::solver_quiet::<day15::Solution>,
+					16 => Self::solver_quiet::<day16::Solution>,
+					17 => Self::solver_quiet::<day17::Solution>,
+					18 => Self::solver_quiet::<day18::Solution>,
+					19 => Self::solver_quiet::<day19::Solution>,
+					20 => Self::solver_quiet::<day20::Solution>,
+					21 => Self::solver_quiet::<day21::Solution>,
+					22 => Self::solver_quiet::<day22::Solution>,
+					23 => Self::solver_quiet::<day23::Solution>,
+					24 => Self::solver_quiet::<day24::Solution>,
+					25 => Self::solver_quiet::<day25::Solution>,
+					d => {
+						println!("Invalid day {d}, skipping.");
+						continue;
+					}
+				}
+			};
+
+			let file = self.get_input(day)?;
+			let mut times = Duration::ZERO;
+			for _ in 0..self.bench {
+				let file = file.clone();
+				let (time, ans) = solver(self, file, day, &parts)?;
+				times += time;
+				answers.push(ans);
+			}
+			println!(
+				"d{day:02}: {times:?} total, {:.6}ms per run",
+				(times / self.bench).as_secs_f64() * 1000.0
+			);
+			total_times += times;
+		}
+
+		println!(
+			"All: {total_times:?} total, {:.6}ms per run",
+			(total_times / self.bench).as_secs_f64() * 1000.0
+		);
+
+		println!("Some answers: {:?}", &answers[0..3]);
+
+		Ok(total_times)
 	}
 
 	/// Returns `None` if the input is released, otherwise returns the time until release. Returns

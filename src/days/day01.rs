@@ -39,7 +39,7 @@ impl Solver for Solution {
 		self.best_3.into_iter().sum_self()
 	}
 
-	fn run_any(&mut self, part: u32) -> Res<String> {
+	fn run_any_write<W: std::fmt::Write>(&mut self, part: u32, _writer: W) -> Result<(), AocError> {
 		#[allow(clippy::match_single_binding)]
 		match part {
 			_ => Err(AocError::PartNotFound),

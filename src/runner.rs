@@ -202,10 +202,10 @@ impl Settings {
 				if self.runner_debug > 0 {
 					eprintln!("The input file does not exist, fetching input from network");
 				}
-				let until = Self::time_until_input_is_released(day);
+				let until = time_until_input_is_released(day);
 				if until > ChDuration::zero() {
 					if until < ChDuration::seconds(60) {
-						let wait = until.num_seconds() + 1;
+						let wait = until.num_seconds() + 5;
 						eprintln!(
 							"Day {day} releases in {} seconds, waiting {} seconds.",
 							until.num_seconds(),
@@ -289,10 +289,16 @@ impl Settings {
 			.get_or_insert_with(|| Regex::new(r"<pre>\s*<code>([^<]+)</code>\s*</pre>").unwrap());
 		for (i, code) in regex.captures_iter(&text).enumerate() {
 			let i = i + 1;
+			if self.runner_debug > 0 {
+				eprintln!("Got a code match, making a test {i}");
+			}
+
 			let code = &code[1];
+
 			let test_path = path.parent().unwrap().join(format!("input{i:02}.txt"));
 			let file = File::create(test_path)?;
 			let mut file = BufWriter::new(file);
+
 			html_escape::decode_html_entities_to_writer(
 				std::str::from_utf8(code).map_err(|_| AocError::NonUtf8InPromptCodeBlock)?,
 				&mut file,
@@ -497,33 +503,33 @@ impl Settings {
 
 		Ok(total_times)
 	}
+}
 
-	/// Returns `None` if the input is released, otherwise returns the time until release. Returns
-	/// `None` if the time cannot be determined.
-	///
-	/// # Warning
-	///
-	/// This is likely to break (by not allowing downloading of the puzzle for an extra hour) if the
-	/// United States decides to remove time changes in favor of sticking to Daylight Saving Time,
-	/// and Eric Wastl continues to keep AoC on US-East time. In such an event, change
-	/// `ERIC_TIME_OFFSET` to `-4`.
-	// Note: chrono is actually way more confusing than I thought. Idk if this is the correct way to
-	// use it but it seems to work.
-	pub fn time_until_input_is_released(day: u32) -> ChDuration {
-		const ERIC_TIME_OFFSET: i32 = -5;
+/// Returns `None` if the input is released, otherwise returns the time until release. Returns
+/// `None` if the time cannot be determined.
+///
+/// # Warning
+///
+/// This is likely to break (by not allowing downloading of the puzzle for an extra hour) if the
+/// United States decides to remove time changes in favor of sticking to Daylight Saving Time,
+/// and Eric Wastl continues to keep AoC on US-East time. In such an event, change
+/// `ERIC_TIME_OFFSET` to `-4`.
+// Note: chrono is actually way more confusing than I thought. Idk if this is the correct way to
+// use it but it seems to work.
+pub fn time_until_input_is_released(day: u32) -> ChDuration {
+	const ERIC_TIME_OFFSET: i32 = -5;
 
-		let t = Utc::now().naive_utc();
+	let t = Utc::now().naive_utc();
 
-		let release = NaiveDate::from_ymd_opt(YEAR as _, 12, day)
-			.unwrap()
-			.and_hms_opt(0, 0, 0)
-			.unwrap()
-			.and_local_timezone(FixedOffset::east_opt(ERIC_TIME_OFFSET * 60 * 60).unwrap())
-			.unwrap()
-			.naive_utc();
+	let release = NaiveDate::from_ymd_opt(YEAR as _, 12, day)
+		.unwrap()
+		.and_hms_opt(0, 0, 0)
+		.unwrap()
+		.and_local_timezone(FixedOffset::east_opt(ERIC_TIME_OFFSET * 60 * 60).unwrap())
+		.unwrap()
+		.naive_utc();
 
-		release - t
-	}
+	release - t
 }
 
 /// Time a single function.

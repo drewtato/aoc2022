@@ -2,8 +2,8 @@
 
 use crate::helpers::*;
 
-type A1 = impl std::fmt::Display + std::fmt::Debug + Clone;
-type A2 = impl std::fmt::Display + std::fmt::Debug + Clone;
+type A1 = i32;
+type A2 = i32;
 
 #[derive(Debug)]
 pub struct Solution {
@@ -11,62 +11,80 @@ pub struct Solution {
 	p2: A2,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
+enum Shape {
+	Rock = 1,
+	Paper = 2,
+	Scissors = 3,
+}
+use Shape::*;
+
+const LOSE: Shape = Rock;
+const DRAW: Shape = Paper;
+const WIN: Shape = Scissors;
+
 impl Solver for Solution {
 	type AnswerOne = A1;
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>) -> Self {
-		let input: Vec<(u8, u8)> = file
-			.trim_ascii()
-			.lines()
-			.map(|line| {
-				let a = match line[0] {
-					b'A' => 0,
-					b'B' => 1,
-					b'C' => 2,
-					_ => panic!(),
-				};
-				let b = match line[2] {
-					b'X' => 0,
-					b'Y' => 1,
-					b'Z' => 2,
-					_ => panic!(),
-				};
-				(a, b)
-			})
-			.collect();
-
-		let mut total = 0;
-		for &(a, b) in &input {
-			total +=
-				(if a == b { 3 } else { 0 } + if b == (a + 1) % 3 { 6 } else { 0 } + b + 1) as i32;
-		}
-
+		let mut total1 = 0;
 		let mut total2 = 0;
-		for (a, x) in input {
-			let b = match x {
-				0 => (a + 2) % 3,
-				1 => a,
-				2 => (a + 1) % 3,
+
+		for line in file.trim_ascii().lines() {
+			let a = match line[0] {
+				b'A' => Rock,
+				b'B' => Paper,
+				b'C' => Scissors,
 				_ => panic!(),
 			};
-			total2 +=
-				(if a == b { 3 } else { 0 } + if b == (a + 1) % 3 { 6 } else { 0 } + b + 1) as i32;
-			// println!("a: {} b: {} x: {}, total: {}", a, b, x, total2);
+			let b = match line[2] {
+				b'X' => Rock,
+				b'Y' => Paper,
+				b'Z' => Scissors,
+				_ => panic!(),
+			};
+
+			total1 += match (a, b) {
+				(Rock, Scissors) => 0,
+				(Paper, Rock) => 0,
+				(Scissors, Paper) => 0,
+				(Rock, Rock) => 3,
+				(Paper, Paper) => 3,
+				(Scissors, Scissors) => 3,
+				(Rock, Paper) => 6,
+				(Paper, Scissors) => 6,
+				(Scissors, Rock) => 6,
+			};
+			total1 += b as i32;
+
+			total2 += match (a, b) {
+				(Rock, WIN) => Paper,
+				(Paper, WIN) => Scissors,
+				(Scissors, WIN) => Rock,
+				(Rock, DRAW) => Rock,
+				(Paper, DRAW) => Paper,
+				(Scissors, DRAW) => Scissors,
+				(Rock, LOSE) => Scissors,
+				(Paper, LOSE) => Rock,
+				(Scissors, LOSE) => Paper,
+			} as i32;
+			total2 += (b as i32 - 1) * 3;
 		}
 
 		Self {
-			p1: total,
+			p1: total1,
 			p2: total2,
 		}
 	}
 
 	fn part_one(&mut self) -> Self::AnswerOne {
-		self.p1.clone()
+		self.p1
 	}
 
 	fn part_two(&mut self) -> Self::AnswerTwo {
-		self.p2.clone()
+		self.p2
 	}
 
 	fn run_any_write<W: std::fmt::Write>(&mut self, part: u32, _writer: W) -> Res<()> {

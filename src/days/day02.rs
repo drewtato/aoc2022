@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::helpers::*;
 
 type A1 = i32;

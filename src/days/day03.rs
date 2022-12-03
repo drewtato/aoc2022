@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use std::num::NonZeroU8;
+
 use crate::helpers::*;
 
 type A1 = impl std::fmt::Display + std::fmt::Debug + Clone;
@@ -16,34 +18,37 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>) -> Self {
-		let mut sum = 0;
-		for line in file.trim_ascii().lines() {
+		let mut p1: u32 = 0;
+		let mut p2: u32 = 0;
+
+		let p1_lines = file.trim_ascii().lines().map(|line| {
 			let len = line.len();
 			let (first, second) = line.split_at(len / 2);
-			let first: HashSet<u8> = first.iter().copied().collect();
-			let second = second.iter().copied().collect();
-			let &same = first.intersection(&second).next().unwrap();
-			sum += priority(same);
+
+			let mut first_map: u64 = 0;
+			let mut second_map: u64 = 0;
+
+			for &bit in first {
+				first_map |= (1 << priority(bit));
+			}
+
+			for &bit in second {
+				second_map |= (1 << priority(bit));
+			}
+
+			let common = first_map & second_map;
+			let priority = common.ilog2();
+			p1 += priority;
+			first_map | second_map
+		});
+
+		for [a, b, c] in p1_lines.array_chunks() {
+			let badge = a & b & c;
+			let priority = badge.ilog2();
+			p2 += priority;
 		}
 
-		let mut sum2 = 0;
-		for [a, b, c] in file.trim_ascii().lines().array_chunks() {
-			let a: HashSet<u8> = a.iter().copied().collect();
-			let b: HashSet<u8> = b.iter().copied().collect();
-			let c: HashSet<u8> = c.iter().copied().collect();
-			let same = 'b: {
-				for elem in a.intersection(&b) {
-					if c.contains(elem) {
-						break 'b *elem;
-					}
-				}
-				panic!()
-			};
-
-			sum2 += priority(same);
-		}
-
-		Self { p1: sum, p2: sum2 }
+		Self { p1, p2 }
 	}
 
 	fn part_one(&mut self) -> Self::AnswerOne {
@@ -62,10 +67,10 @@ impl Solver for Solution {
 	}
 }
 
-fn priority(item: u8) -> i32 {
-	(match item {
+fn priority(item: u8) -> u8 {
+	match item {
 		b'a'..=b'z' => item - b'a' + 1,
 		b'A'..=b'Z' => item - b'A' + 27,
 		_ => panic!(),
-	}) as i32
+	}
 }

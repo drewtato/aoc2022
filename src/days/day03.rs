@@ -1,7 +1,3 @@
-#![allow(unused)]
-
-use std::num::NonZeroU8;
-
 use crate::helpers::*;
 
 type A1 = impl std::fmt::Display + std::fmt::Debug + Clone;
@@ -29,11 +25,11 @@ impl Solver for Solution {
 			let mut second_map: u64 = 0;
 
 			for &bit in first {
-				first_map |= (1 << priority(bit));
+				first_map |= 1 << priority(bit);
 			}
 
 			for &bit in second {
-				second_map |= (1 << priority(bit));
+				second_map |= 1 << priority(bit);
 			}
 
 			let common = first_map & second_map;

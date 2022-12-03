@@ -3,6 +3,7 @@
 #![feature(array_try_from_fn)]
 #![feature(byte_slice_trim_ascii)]
 #![feature(slice_take)]
+#![feature(iter_array_chunks)]
 
 pub const YEAR: u32 = 2022;
 pub type Res<T> = Result<T, AocError>;

@@ -16,15 +16,31 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>) -> Self {
-		let input: Vec<i32> = file
-			.trim_ascii()
-			.lines()
-			.map(|line| line.trim_ascii().parse().unwrap())
-			.collect();
+		let input = file.trim_ascii().lines().map(|line| -> Vec<i32> {
+			line.split(|&c| c == b',' || c == b'-')
+				.map(|n| n.parse().unwrap())
+				.collect()
+		});
+
+		let mut count = 0;
+		let mut count2 = 0;
+		for list in input {
+			let &[a, b, c, d] = list.as_slice() else { panic!() };
+			if ((a <= c) && (b >= d)) || ((a >= c) && (b <= d)) {
+				count += 1;
+			}
+			if (a..=b).contains(&c)
+				|| (a..=b).contains(&d)
+				|| (c..=d).contains(&a)
+				|| (c..=d).contains(&b)
+			{
+				count2 += 1;
+			}
+		}
 
 		Self {
-			p1: "Part 1 not implemented",
-			p2: "Part 2 not implemented",
+			p1: count,
+			p2: count2,
 		}
 	}
 

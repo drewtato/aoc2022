@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::helpers::*;
 
 type A1 = impl std::fmt::Display + std::fmt::Debug + Clone;
@@ -16,16 +14,20 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>) -> Self {
-		let input = file.trim_ascii().lines().map(|line| -> Vec<i32> {
-			line.split(|&c| c == b',' || c == b'-')
-				.map(|n| n.parse().unwrap())
-				.collect()
-		});
+		let mut file_slice = file.as_slice();
+		let input = std::iter::from_fn(|| -> Option<i32> {
+			if file_slice.is_empty() {
+				return None;
+			}
+			let (i, consumed) = atoi::FromRadix10::from_radix_10(file_slice);
+			file_slice = file_slice.split_at(consumed + 1).1;
+			Some(i)
+		})
+		.array_chunks::<4>();
 
 		let mut count = 0;
 		let mut count2 = 0;
-		for list in input {
-			let &[a, b, c, d] = list.as_slice() else { panic!() };
+		for [a, b, c, d] in input {
 			if ((a <= c) && (b >= d)) || ((a >= c) && (b <= d)) {
 				count += 1;
 			}

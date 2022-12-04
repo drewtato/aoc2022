@@ -441,7 +441,7 @@ impl Settings {
 	/// all necessary parts in sequence and time it as a whole.
 	pub fn benchmark(&mut self, days: Vec<(u32, Vec<u32>)>) -> Res<Duration> {
 		let mut total_times = Duration::ZERO;
-		let mut answers = Vec::new();
+		let mut answers = Vec::with_capacity(1000);
 
 		for (day, parts) in days {
 			let solver = {
@@ -492,6 +492,9 @@ impl Settings {
 				(times / self.bench).as_secs_f64() * 1000.0
 			);
 			total_times += times;
+			if answers.len() > 990 {
+				answers.truncate(100);
+			}
 		}
 
 		println!(

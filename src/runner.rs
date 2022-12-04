@@ -4,6 +4,7 @@ use regex::bytes::Regex;
 use reqwest::blocking::Client;
 use reqwest::header::COOKIE;
 use std::fs::{create_dir_all, read_to_string, File};
+use std::hint::black_box;
 use std::io::{self, stdout, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::thread;
@@ -78,10 +79,15 @@ impl Settings {
 		if runner_debug > 0 {
 			eprintln!("Parsing day arguments");
 		}
-		let days = days
+		let mut days = days
 			.iter()
 			.map(Self::parse_day_arg)
 			.collect::<Result<Vec<_>, _>>()?;
+
+		if days.as_slice() == [(0, Vec::new())] {
+			days.pop();
+			(1..=25).map(|n| (n, Vec::new())).collect_into(&mut days);
+		}
 
 		if runner_debug > 0 {
 			eprintln!("Running days");
@@ -441,7 +447,6 @@ impl Settings {
 	/// all necessary parts in sequence and time it as a whole.
 	pub fn benchmark(&mut self, days: Vec<(u32, Vec<u32>)>) -> Res<Duration> {
 		let mut total_times = Duration::ZERO;
-		let mut answers = Vec::with_capacity(1000);
 
 		for (day, parts) in days {
 			let solver = {
@@ -481,28 +486,25 @@ impl Settings {
 
 			let file = self.get_input(day)?;
 			let mut times = Duration::ZERO;
+			let mut answers = Vec::new();
 			for _ in 0..self.bench {
 				let file = file.clone();
 				let (time, ans) = solver(self, file, day, &parts)?;
 				times += time;
-				answers.push(ans);
+				answers = black_box(ans);
 			}
 			println!(
-				"d{day:02}: {times:?} total, {:.6}ms per run",
+				"d{day:02}: {:?}; {times:?} total, {:.6}ms per run",
+				answers,
 				(times / self.bench).as_secs_f64() * 1000.0
 			);
 			total_times += times;
-			if answers.len() > 990 {
-				answers.truncate(100);
-			}
 		}
 
 		println!(
 			"All: {total_times:?} total, {:.6}ms per run",
 			(total_times / self.bench).as_secs_f64() * 1000.0
 		);
-
-		println!("Some answers: {:?}", &answers[0..3]);
 
 		Ok(total_times)
 	}

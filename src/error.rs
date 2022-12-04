@@ -47,4 +47,9 @@ pub enum AocError {
 	NonUtf8InPromptCodeBlock,
 	#[error("Non-UTF-8 data found in solution")]
 	NonUtf8InSolution,
+	#[error(transparent)]
+	FmtError {
+		#[from]
+		source: std::fmt::Error,
+	},
 }

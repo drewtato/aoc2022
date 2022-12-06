@@ -5,6 +5,7 @@
 #![feature(slice_take)]
 #![feature(iter_array_chunks)]
 #![feature(iter_collect_into)]
+#![feature(get_many_mut)]
 
 pub const YEAR: u32 = 2022;
 pub type Res<T> = Result<T, AocError>;

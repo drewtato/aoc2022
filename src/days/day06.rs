@@ -2,13 +2,12 @@
 
 use crate::helpers::*;
 
-type A1 = impl std::fmt::Display + std::fmt::Debug + Clone;
-type A2 = impl std::fmt::Display + std::fmt::Debug + Clone;
+type A1 = usize;
+type A2 = usize;
 
 #[derive(Debug)]
 pub struct Solution {
-	p1: A1,
-	p2: A2,
+	file: Vec<u8>,
 }
 
 impl Solver for Solution {
@@ -16,24 +15,15 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>) -> Self {
-		let input: Vec<i32> = file
-			.trim_ascii()
-			.lines()
-			.map(|line| line.trim_ascii().parse().unwrap())
-			.collect();
-
-		Self {
-			p1: "Part 1 not implemented",
-			p2: "Part 2 not implemented",
-		}
+		Self { file }
 	}
 
 	fn part_one(&mut self) -> Self::AnswerOne {
-		self.p1.clone()
+		self.find_consecutive_unique::<4>() + 4
 	}
 
 	fn part_two(&mut self) -> Self::AnswerTwo {
-		self.p2.clone()
+		self.find_consecutive_unique::<14>() + 14
 	}
 
 	fn run_any_write<W: std::fmt::Write>(&mut self, part: u32, _writer: W) -> Res<()> {
@@ -41,5 +31,14 @@ impl Solver for Solution {
 		match part {
 			_ => Err(AocError::PartNotFound),
 		}
+	}
+}
+
+impl Solution {
+	fn find_consecutive_unique<const N: usize>(&self) -> usize {
+		self.file
+			.array_windows::<N>()
+			.position(|&window| HashSet::from(window).len() == N)
+			.unwrap()
 	}
 }

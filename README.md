@@ -7,6 +7,7 @@ These are my Advent of Code solutions written in rust. Below will be my global l
 ```sql
       --------Part 1--------   --------Part 2--------
 Day       Time   Rank  Score       Time   Rank  Score
+  6   00:04:55   1954      0   00:05:59   1777      0
   5   19:03:01  83782      0   19:05:37  81478      0
   4   00:08:18   3510      0   00:10:12   2553      0
   3   02:24:45  22232      0   02:32:00  20085      0

@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::helpers::*;
 
 type A1 = usize;
@@ -39,14 +37,14 @@ impl Solver for Solution {
 }
 
 impl Solution {
-	fn find_consecutive_unique_compare<const N: usize>(&self) -> usize {
+	pub fn find_consecutive_unique_compare<const N: usize>(&self) -> usize {
 		self.file
 			.array_windows::<N>()
 			.position(|a| a.iter().copied().tuple_combinations().all(|(a, b)| a != b))
 			.unwrap()
 	}
 
-	fn find_consecutive_unique_compare_4(&self) -> usize {
+	pub fn find_consecutive_unique_compare_4(&self) -> usize {
 		self.file
 			.array_windows::<4>()
 			.position(|a| {
@@ -57,7 +55,7 @@ impl Solution {
 			})
 			.unwrap()
 	}
-	fn find_consecutive_unique_compare_14(&self) -> usize {
+	pub fn find_consecutive_unique_compare_14(&self) -> usize {
 		self.file
 			.array_windows::<14>()
 			.position(|a| {
@@ -111,7 +109,7 @@ impl Solution {
 			.unwrap()
 	}
 
-	fn find_consecutive_unique<const N: usize>(&self) -> usize {
+	pub fn find_consecutive_unique<const N: usize>(&self) -> usize {
 		let mut chars_with_match = 0;
 		let mut chars_count = [0; 26];
 

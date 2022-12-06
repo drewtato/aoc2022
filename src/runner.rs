@@ -494,9 +494,9 @@ impl Settings {
 				answers = black_box(ans);
 			}
 			println!(
-				"d{day:02}: {:?}; {times:?} total, {:.6}ms per run",
+				"d{day:02}: {times:?} total, {:.6}ms per run; {:?}",
+				(times / self.bench).as_secs_f64() * 1000.0,
 				answers,
-				(times / self.bench).as_secs_f64() * 1000.0
 			);
 			total_times += times;
 		}

@@ -14,7 +14,7 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>) -> Self {
-		let mut line_iter = file.trim_ascii_end().lines();
+		let mut line_iter = file.lines();
 		let mut stacks: Vec<Vec<u8>> = line_iter
 			// Smallvec ended up being nearly the same speed. This might be a better optimization if
 			// there is a hard limit on how large each vec can be.
@@ -49,16 +49,31 @@ impl Solver for Solution {
 			// println!("]");
 		}
 
-		let instructions_iter = line_iter.map(|line| {
-			let line = &line[5..];
-			let (boxes_count, bytes): (usize, _) = atoi::FromRadix10::from_radix_10(line);
-			let line = &line[(bytes + 6)..];
-			let (from_stack, bytes): (usize, _) = atoi::FromRadix10::from_radix_10(line);
-			let line = &line[(bytes + 4)..];
-			let (to_stack, _): (usize, _) = atoi::FromRadix10::from_radix_10(line);
+		let mut instructions_slice = line_iter.as_slice();
+		let instructions_iter = std::iter::from_fn(|| {
+			instructions_slice = instructions_slice.get(5..)?;
+			let (boxes_count, bytes): (usize, _) =
+				atoi::FromRadix10::from_radix_10(instructions_slice);
+			instructions_slice = &instructions_slice[(bytes + 6)..];
+			let (from_stack, bytes): (usize, _) =
+				atoi::FromRadix10::from_radix_10(instructions_slice);
+			instructions_slice = &instructions_slice[(bytes + 4)..];
+			let (to_stack, bytes): (usize, _) =
+				atoi::FromRadix10::from_radix_10(instructions_slice);
+			instructions_slice = &instructions_slice[(bytes + 1)..];
 			// Change to zero-based indexing
-			[boxes_count, from_stack - 1, to_stack - 1]
+			Some([boxes_count, from_stack - 1, to_stack - 1])
 		});
+		// let instructions_iter = line_iter.map(|line| {
+		// 	let line = &line[5..];
+		// 	let (boxes_count, bytes): (usize, _) = atoi::FromRadix10::from_radix_10(line);
+		// 	let line = &line[(bytes + 6)..];
+		// 	let (from_stack, bytes): (usize, _) = atoi::FromRadix10::from_radix_10(line);
+		// 	let line = &line[(bytes + 4)..];
+		// 	let (to_stack, _): (usize, _) = atoi::FromRadix10::from_radix_10(line);
+		// 	// Change to zero-based indexing
+		// 	[boxes_count, from_stack - 1, to_stack - 1]
+		// });
 
 		let mut stacks_part_2 = stacks.clone();
 

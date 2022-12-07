@@ -34,7 +34,12 @@ pub struct Settings {
 	/// Benchmark this run. Runs once, unless a number of runs is given. Saves output until
 	/// everything is finished.
 	#[arg(long, short, default_value_t = 0, default_missing_value = "1")]
-	pub bench: u32,
+	pub bench: u128,
+
+	/// Benchmark for time instead of runs. The number given for `bench` is treated as number of
+	/// milliseconds to run for instead of number of iterations.
+	#[arg(long, short = 'u')]
+	pub duration: bool,
 
 	// /// Runs days in parallel.
 	// #[arg(long, short)]
@@ -447,6 +452,7 @@ impl Settings {
 	/// all necessary parts in sequence and time it as a whole.
 	pub fn benchmark(&mut self, days: Vec<(u32, Vec<u32>)>) -> Res<Duration> {
 		let mut total_times = Duration::ZERO;
+		let mut total_avg_times = Duration::ZERO;
 
 		for (day, parts) in days {
 			let solver = {
@@ -497,23 +503,44 @@ impl Settings {
 				answers = black_box(ans);
 			}
 
-			for _ in 0..self.bench {
-				let file = file.clone();
-				let (time, ans) = solver(self, file, day, &parts)?;
-				times += time;
-				answers = black_box(ans);
-			}
+			// Run for time if dur is set
+			let runs = if self.duration {
+				let bench_time = Instant::now();
+				let mut runs = 0;
+
+				while bench_time.elapsed().as_millis() < self.bench {
+					runs += 1;
+					let file = file.clone();
+					let (time, ans) = solver(self, file, day, &parts)?;
+					times += time;
+					answers = black_box(ans);
+				}
+				total_avg_times += times / runs;
+				runs
+			} else {
+				let bench = self.bench as u32;
+				for _ in 0..bench {
+					let file = file.clone();
+					let (time, ans) = solver(self, file, day, &parts)?;
+					times += time;
+					answers = black_box(ans);
+				}
+				total_avg_times += times / bench;
+				bench
+			};
 			println!(
-				"d{day:02}: {times:?} total, {:.6}ms per run; {:?}",
-				(times / self.bench).as_secs_f64() * 1000.0,
+				"d{day:02}: {times:?} total, {:.6}ms per run, {} runs; {:?}",
+				(times / runs).as_secs_f64() * 1000.0,
+				runs,
 				answers,
 			);
+
 			total_times += times;
 		}
 
 		println!(
 			"All: {total_times:?} total, {:.6}ms per run",
-			(total_times / self.bench).as_secs_f64() * 1000.0
+			total_avg_times.as_secs_f64() * 1000.0
 		);
 
 		Ok(total_times)

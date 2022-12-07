@@ -487,6 +487,16 @@ impl Settings {
 			let file = self.get_input(day)?;
 			let mut times = Duration::ZERO;
 			let mut answers = Vec::new();
+
+			// These first few will likely be slower since it needs to allocate any mem from the OS
+			// and learn the branch prediction strategy.
+			let warmup = 10;
+			for _ in 0..warmup {
+				let file = file.clone();
+				let (_time, ans) = solver(self, file, day, &parts)?;
+				answers = black_box(ans);
+			}
+
 			for _ in 0..self.bench {
 				let file = file.clone();
 				let (time, ans) = solver(self, file, day, &parts)?;

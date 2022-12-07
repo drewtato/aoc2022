@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use atoi::FromRadix10;
 
 use crate::helpers::*;
@@ -57,7 +55,7 @@ impl Solver for Solution {
 		}
 
 		let mut total = 0;
-		for leftover in working_sizes {
+		for leftover in working_sizes.into_iter().rev() {
 			total += leftover;
 			dir_sizes.push(total);
 		}
@@ -66,15 +64,18 @@ impl Solver for Solution {
 
 		let total_size = 70000000;
 		let used_size = dir_sizes.pop().unwrap();
+		if used_size < 100000 {
+			total_low_size += used_size;
+		}
 		let free_size = total_size - used_size;
 		let needed_size = 30000000 - free_size;
 		let mut size_of_best_dir = A2::MAX;
 
 		for size in dir_sizes {
-			if size > needed_size {
+			if size >= needed_size {
 				size_of_best_dir = size_of_best_dir.min(size);
 			}
-			if size < 100000 {
+			if size <= 100000 {
 				total_low_size += size;
 			}
 		}

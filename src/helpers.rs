@@ -49,6 +49,9 @@ where
 {
 }
 
+mod display_bytes;
+pub use display_bytes::*;
+
 /// Returns a curried function that compares a value to another value.
 ///
 /// Example:

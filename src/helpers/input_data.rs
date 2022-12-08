@@ -21,6 +21,18 @@ pub trait InputData<'a> {
 	where
 		F: FnMut(u8) -> G,
 		G: Default + Clone;
+
+	/// Runs a closure on each line of input. The closure is given a slice that starts at the
+	/// beginning of a line and goes all the way to the end of the input. The closure returns how
+	/// many characters to skip forward so that this function doesn't have to recheck those for a
+	/// newline byte. It also allows it to consume multiple lines if necessary. If the closure
+	/// returns `Ok(skip)`, `consume_lines` will skip forward that much and then skip until a
+	/// newline is found. If the closure returns `Err(skip)` for the skip count, it means to only
+	/// skip forward that much without advancing more for newline. This is useful if the newline has
+	/// been found inside the closure, or if the closure doesn't want to skip an entire line.
+	fn consume_lines<F>(&self, f: F)
+	where
+		F: FnMut(&[u8]) -> Result<usize, usize>;
 }
 
 impl<'a> InputData<'a> for [u8] {
@@ -53,6 +65,36 @@ impl<'a> InputData<'a> for [u8] {
 
 		grid
 	}
+
+	fn consume_lines<F>(&self, mut f: F)
+	where
+		F: FnMut(&[u8]) -> Result<usize, usize>,
+	{
+		let mut current = self;
+		loop {
+			let skip = f(current);
+			match advance_to_newline(current, skip) {
+				Some(new_current) => current = new_current,
+				None => break,
+			}
+		}
+	}
+}
+
+fn advance_to_newline(mut current: &[u8], skip: Result<usize, usize>) -> Option<&[u8]> {
+	match skip {
+		Ok(s) => current = current.get(s..)?,
+		Err(s) => return current.get(s..),
+	}
+
+	loop {
+		let &first = current.take_first()?;
+		if first == b'\n' {
+			break;
+		}
+	}
+
+	Some(current)
 }
 
 fn byte_is_newline(byte: &u8) -> bool {
@@ -66,4 +108,41 @@ fn byte_is_ascii_whitespace(byte: &u8) -> bool {
 /// Necessary for higher-ranked lifetime error when using closure instead
 fn slice_is_not_empty(s: &&[u8]) -> bool {
 	!s.is_empty()
+}
+
+#[cfg(test)]
+mod tests {
+	use itertools::Itertools;
+
+	use super::*;
+
+	#[test]
+	fn consume_lines() {
+		let data = b"hello\n123   \n123\nyes\n";
+		let mut res = Vec::new();
+		data.consume_lines(|line| {
+			let line_stuff = line
+				.iter()
+				.copied()
+				.take_while(|b| !b.is_ascii_whitespace())
+				.collect_vec();
+			let len = line_stuff.len();
+			res.push(line_stuff);
+			if line.get(len) == Some(&b'\n') {
+				Err(len + 1)
+			} else {
+				Ok(len)
+			}
+		});
+		assert_eq!(
+			res.as_slice(),
+			&[
+				b"hello".to_vec(),
+				b"123".to_vec(),
+				b"123".to_vec(),
+				b"yes".to_vec(),
+				b"".to_vec(),
+			]
+		);
+	}
 }

@@ -19,40 +19,8 @@ impl Solver for Solution {
 		let mut dir_sizes = Vec::with_capacity(250);
 		let mut working_sizes = Vec::with_capacity(32);
 
-		let mut file = file.as_slice();
-
-		loop {
-			let Some(&first) = file.first() else { break; };
-			let skip = match first {
-				b'$' => match file[2] {
-					b'c' => match file[5] {
-						b'.' => {
-							let size = working_sizes.pop().unwrap();
-							*working_sizes.last_mut().unwrap() += size;
-							dir_sizes.push(size);
-							7
-						}
-						_dirname => {
-							working_sizes.push(0);
-							6
-						}
-					},
-					b'l' => 4,
-					_ => panic!("Unknown command"),
-				},
-				b'd' => 5,
-				_digit => {
-					let (file_size, skip): (A1, _) = FromRadix10::from_radix_10(file);
-					*working_sizes.last_mut().unwrap() += file_size;
-					skip
-				}
-			};
-			file = &file[skip..];
-			while file[0] != b'\n' {
-				file = &file[1..];
-			}
-			file = &file[1..];
-		}
+		consume_method(file, &mut working_sizes, &mut dir_sizes);
+		// manual_method(file, &mut working_sizes, &mut dir_sizes);
 
 		let mut total = 0;
 		for leftover in working_sizes.into_iter().rev() {
@@ -100,4 +68,76 @@ impl Solver for Solution {
 			_ => Err(AocError::PartNotFound),
 		}
 	}
+}
+
+#[allow(dead_code)]
+fn manual_method(file: Vec<u8>, working_sizes: &mut Vec<u32>, dir_sizes: &mut Vec<u32>) {
+	let mut file = file.as_slice();
+	loop {
+		let Some(&first) = file.first() else { break; };
+		let skip = match first {
+			b'$' => match file[2] {
+				b'c' => match file[5] {
+					b'.' => {
+						let size = working_sizes.pop().unwrap();
+						*working_sizes.last_mut().unwrap() += size;
+						dir_sizes.push(size);
+						7
+					}
+					_dirname => {
+						working_sizes.push(0);
+						6
+					}
+				},
+				b'l' => 4,
+				_ => panic!("Unknown command"),
+			},
+			b'd' => 5,
+			_digit => {
+				let (file_size, skip): (A1, _) = FromRadix10::from_radix_10(file);
+				*working_sizes.last_mut().unwrap() += file_size;
+				skip
+			}
+		};
+		file = &file[skip..];
+		while file[0] != b'\n' {
+			file = &file[1..];
+		}
+		file = &file[1..];
+	}
+}
+
+#[allow(dead_code)]
+fn consume_method(file: Vec<u8>, working_sizes: &mut Vec<u32>, dir_sizes: &mut Vec<u32>) {
+	file.consume_lines(|line| {
+		let Some(&first) = line.first() else { return Ok(0); };
+		match first {
+			b'$' => match line[2] {
+				b'c' => match line[5] {
+					b'.' => {
+						let size = working_sizes.pop().unwrap();
+						*working_sizes.last_mut().unwrap() += size;
+						dir_sizes.push(size);
+						Err(8)
+					}
+					b'/' => {
+						working_sizes.push(0);
+						Err(7)
+					}
+					_dirname => {
+						working_sizes.push(0);
+						Ok(6)
+					}
+				},
+				b'l' => Err(5),
+				_ => panic!("Unknown command"),
+			},
+			b'd' => Ok(5),
+			_digit => {
+				let (file_size, skip): (A1, _) = FromRadix10::from_radix_10(line);
+				*working_sizes.last_mut().unwrap() += file_size;
+				Ok(skip)
+			}
+		}
+	});
 }

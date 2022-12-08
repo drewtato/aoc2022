@@ -16,10 +16,13 @@ impl Solver for Solution {
 	fn initialize(file: Vec<u8>) -> Self {
 		let mut p1: u32 = 0;
 		let mut p2: u32 = 0;
+		let mut chunk = [0; 3];
+		let mut i = 0;
 
-		let p1_lines = file.trim_ascii().lines().map(|line| {
-			let len = line.len();
-			let (first, second) = line.split_at(len / 2);
+		file.consume_lines(|line| {
+			let len = line.iter().position(|&b| b == b'\n').ok_or(1usize)?;
+			let first = &line[..len / 2];
+			let second = &line[len / 2..len];
 
 			let mut first_map: u64 = 0;
 			let mut second_map: u64 = 0;
@@ -35,14 +38,17 @@ impl Solver for Solution {
 			let common = first_map & second_map;
 			let priority = common.ilog2();
 			p1 += priority;
-			first_map | second_map
-		});
 
-		for [a, b, c] in p1_lines.array_chunks() {
-			let badge = a & b & c;
-			let priority = badge.ilog2();
-			p2 += priority;
-		}
+			chunk[i % 3] = first_map | second_map;
+			if i % 3 == 2 {
+				let [a, b, c] = chunk;
+				let badge = a & b & c;
+				let priority = badge.ilog2();
+				p2 += priority;
+			}
+			i += 1;
+			Err(len + 1)
+		});
 
 		Self { p1, p2 }
 	}

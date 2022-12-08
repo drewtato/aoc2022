@@ -30,7 +30,7 @@ impl Solver for Solution {
 		let mut total1 = 0;
 		let mut total2 = 0;
 
-		for line in file.trim_ascii().lines() {
+		file.trim_ascii().consume_lines(|line| {
 			let a = match line[0] {
 				b'A' => Rock,
 				b'B' => Paper,
@@ -69,7 +69,8 @@ impl Solver for Solution {
 				(Scissors, LOSE) => Paper,
 			} as i32;
 			total2 += (b as i32 - 1) * 3;
-		}
+			Err(4)
+		});
 
 		Self {
 			p1: total1,

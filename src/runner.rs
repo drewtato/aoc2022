@@ -451,6 +451,10 @@ impl Settings {
 	/// Benchmark a day, or all if the day is 0. Will load all inputs from disk first, then runs
 	/// all necessary parts in sequence and time it as a whole.
 	pub fn benchmark(&mut self, days: Vec<(u32, Vec<u32>)>) -> Res<Duration> {
+		if cfg!(debug_assertions) {
+			eprintln!("WARNING: running in debug mode");
+		}
+
 		let mut total_times = Duration::ZERO;
 		let mut total_avg_times = Duration::ZERO;
 
@@ -529,7 +533,8 @@ impl Settings {
 				bench
 			};
 			println!(
-				"d{day:02}: {times:?} total, {:.6}ms per run, {} runs; {:?}",
+				"d{day:02}: {:<11} total, {:.6}ms per run, {} runs; {:?}",
+				format!("{:?}", times),
 				(times / runs).as_secs_f64() * 1000.0,
 				runs,
 				answers,
@@ -539,7 +544,8 @@ impl Settings {
 		}
 
 		println!(
-			"All: {total_times:?} total, {:.6}ms per run",
+			"All: {:<11} total, {:.6}ms per run",
+			format!("{:?}", total_times),
 			total_avg_times.as_secs_f64() * 1000.0
 		);
 

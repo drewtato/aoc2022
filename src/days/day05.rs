@@ -14,53 +14,38 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>) -> Self {
-		let mut line_iter = file.lines();
-		let mut stacks: Vec<Vec<u8>> = line_iter
-			// Smallvec ended up being nearly the same speed. This might be a better optimization if
-			// there is a hard limit on how large each vec can be.
-			// let mut stacks: SmallVec<[SmallVec<[u8; 64]>; 10]> = line_iter
-			.by_ref()
-			.take_while(|line| !line.is_empty())
-			.fold(Default::default(), |mut stacks, line| {
-				let box_iter = line
-					.iter()
-					.copied()
-					.chain([b' '])
-					.array_chunks()
-					.enumerate();
-				for (i, [_, letter, _, _]) in box_iter {
-					if stacks.len() == i {
-						stacks.push(Default::default());
-					}
-					if letter != b' ' {
-						stacks[i].push(letter);
-					}
+		let line_length = file.iter().position(|&b| b == b'\n').unwrap();
+		let mut stacks = vec![Vec::with_capacity(32); (line_length + 1) / 4];
+		let mut file = file.as_slice();
+		loop {
+			let &first = file.take_first().unwrap();
+			if first == b'\n' {
+				break;
+			}
+
+			let line = &file[..line_length - 1];
+			for (&c, stack) in line.iter().step_by(4).zip(&mut stacks) {
+				if c != b' ' {
+					stack.push(c);
 				}
-				stacks
-			});
+			}
+			file = &file[line_length..];
+		}
 
 		for stack in &mut stacks {
 			stack.pop();
 			stack.reverse();
-			// print!("[");
-			// for &mut item in stack {
-			// 	print!("{}", item as char);
-			// }
-			// println!("]");
 		}
 
-		let mut instructions_slice = line_iter.as_slice();
+		let mut instructions_slice = file;
 		let instructions_iter = std::iter::from_fn(|| {
 			instructions_slice = instructions_slice.get(5..)?;
-			let (boxes_count, bytes): (usize, _) =
-				atoi::FromRadix10::from_radix_10(instructions_slice);
-			instructions_slice = &instructions_slice[(bytes + 6)..];
-			let (from_stack, bytes): (usize, _) =
-				atoi::FromRadix10::from_radix_10(instructions_slice);
-			instructions_slice = &instructions_slice[(bytes + 4)..];
-			let (to_stack, bytes): (usize, _) =
-				atoi::FromRadix10::from_radix_10(instructions_slice);
-			instructions_slice = &instructions_slice[(bytes + 1)..];
+			let boxes_count = parse_consume_unsigned(&mut instructions_slice);
+			instructions_slice = &instructions_slice[6..];
+			let from_stack: usize = parse_consume_unsigned(&mut instructions_slice);
+			instructions_slice = &instructions_slice[4..];
+			let to_stack: usize = parse_consume_unsigned(&mut instructions_slice);
+			instructions_slice = &instructions_slice[1..];
 			// Change to zero-based indexing
 			Some([boxes_count, from_stack - 1, to_stack - 1])
 		});

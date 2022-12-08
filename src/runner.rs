@@ -533,7 +533,7 @@ impl Settings {
 				bench
 			};
 			println!(
-				"d{day:02}: {:<11} total, {:.6}ms per run, {} runs; {:?}",
+				"d{day:02}: {:<12} total, {:.6}ms per run, {} runs; {:?}",
 				format!("{:?}", times),
 				(times / runs).as_secs_f64() * 1000.0,
 				runs,
@@ -544,7 +544,7 @@ impl Settings {
 		}
 
 		println!(
-			"All: {:<11} total, {:.6}ms per run",
+			"All: {:<12} total, {:.6}ms per run",
 			format!("{:?}", total_times),
 			total_avg_times.as_secs_f64() * 1000.0
 		);

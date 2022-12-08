@@ -109,35 +109,32 @@ fn manual_method(file: Vec<u8>, working_sizes: &mut Vec<u32>, dir_sizes: &mut Ve
 
 #[allow(dead_code)]
 fn consume_method(file: Vec<u8>, working_sizes: &mut Vec<u32>, dir_sizes: &mut Vec<u32>) {
-	file.consume_lines(|line| {
-		let Some(&first) = line.first() else { return Ok(0); };
-		match first {
-			b'$' => match line[2] {
-				b'c' => match line[5] {
-					b'.' => {
-						let size = working_sizes.pop().unwrap();
-						*working_sizes.last_mut().unwrap() += size;
-						dir_sizes.push(size);
-						Err(8)
-					}
-					b'/' => {
-						working_sizes.push(0);
-						Err(7)
-					}
-					_dirname => {
-						working_sizes.push(0);
-						Ok(6)
-					}
-				},
-				b'l' => Err(5),
-				_ => panic!("Unknown command"),
+	file.trim_ascii_end().consume_lines(|line| match line[0] {
+		b'$' => match line[2] {
+			b'c' => match line[5] {
+				b'.' => {
+					let size = working_sizes.pop().unwrap();
+					*working_sizes.last_mut().unwrap() += size;
+					dir_sizes.push(size);
+					Err(8)
+				}
+				b'/' => {
+					working_sizes.push(0);
+					Err(7)
+				}
+				_dirname => {
+					working_sizes.push(0);
+					Ok(6)
+				}
 			},
-			b'd' => Ok(5),
-			_digit => {
-				let (file_size, skip): (A1, _) = FromRadix10::from_radix_10(line);
-				*working_sizes.last_mut().unwrap() += file_size;
-				Ok(skip)
-			}
+			b'l' => Err(5),
+			_ => panic!("Unknown command"),
+		},
+		b'd' => Ok(5),
+		_digit => {
+			let (file_size, skip): (A1, _) = FromRadix10::from_radix_10(line);
+			*working_sizes.last_mut().unwrap() += file_size;
+			Ok(skip)
 		}
 	});
 }

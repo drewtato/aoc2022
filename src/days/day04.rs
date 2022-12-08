@@ -59,8 +59,8 @@ fn file_to_ints(mut file: &[u8]) -> impl Iterator<Item = i32> + '_ {
 		if file.is_empty() {
 			return None;
 		}
-		let (i, consumed) = atoi::FromRadix10::from_radix_10(file);
-		file = file.split_at(consumed + 1).1;
+		let i = parse_consume_unsigned(&mut file);
+		file.take_first();
 		Some(i)
 	})
 }

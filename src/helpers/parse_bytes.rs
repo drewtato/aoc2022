@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use atoi::FromRadix10SignedChecked;
+use atoi::{FromRadix10, FromRadix10Signed, FromRadix10SignedChecked};
 
 /// Examples:
 /// ```ignore
@@ -61,3 +61,100 @@ macro_rules! from_bytes_integer {
 
 from_bytes_integer! { u8, u16, u32, u64, u128, usize }
 from_bytes_integer! { i8, i16, i32, i64, i128, isize }
+
+/// Parses an integer and modifies the slice to start after the integer. Returns 0 when no number
+/// was found.
+///
+/// # Examples
+///
+/// ```
+/// # use aoc2022::helpers::*;
+/// let mut s = b"".as_slice();
+/// let n: u32 = parse_consume_unsigned(&mut s);
+/// assert_eq!(n, 0);
+/// assert_eq!(s.len(), 0);
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::*;
+/// let mut s = b"abc".as_slice();
+/// let n: u32 = parse_consume_unsigned(&mut s);
+/// assert_eq!(n, 0);
+/// assert_eq!(s.len(), 3);
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::*;
+/// let mut s = b"123".as_slice();
+/// let n: u32 = parse_consume_unsigned(&mut s);
+/// assert_eq!(n, 123);
+/// assert_eq!(s.len(), 0);
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::*;
+/// let mut s = b"123abc".as_slice();
+/// let n: u32 = parse_consume_unsigned(&mut s);
+/// assert_eq!(n, 123);
+/// assert_eq!(s.len(), 3);
+/// ```
+pub fn parse_consume_unsigned<I>(s: &mut &[u8]) -> I
+where
+	I: FromRadix10,
+{
+	let (n, size) = FromRadix10::from_radix_10(s);
+	*s = &s[size..];
+	n
+}
+/// Parses an integer and modifies the slice to start after the integer. Returns 0 when no number
+/// was found.
+///
+/// # Examples
+///
+/// ```
+/// # use aoc2022::helpers::*;
+/// let mut s = b"abc".as_slice();
+/// let n: u32 = parse_consume_signed(&mut s);
+/// assert_eq!(n, 0);
+/// assert_eq!(s.len(), 3);
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::*;
+/// let mut s = b"123".as_slice();
+/// let n: u32 = parse_consume_signed(&mut s);
+/// assert_eq!(n, 123);
+/// assert_eq!(s.len(), 0);
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::*;
+/// let mut s = b"123abc".as_slice();
+/// let n: u32 = parse_consume_signed(&mut s);
+/// assert_eq!(n, 123);
+/// assert_eq!(s.len(), 3);
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::*;
+/// let mut s = b"-123abc".as_slice();
+/// let n: i32 = parse_consume_signed(&mut s);
+/// assert_eq!(n, -123);
+/// assert_eq!(s.len(), 3);
+/// ```
+///
+/// ```
+/// # use aoc2022::helpers::*;
+/// let mut s = b"+123abc".as_slice();
+/// let n: u32 = parse_consume_signed(&mut s);
+/// assert_eq!(n, 123);
+/// assert_eq!(s.len(), 3);
+/// ```
+pub fn parse_consume_signed<I>(s: &mut &[u8]) -> I
+where
+	I: FromRadix10Signed,
+{
+	let (n, size) = FromRadix10Signed::from_radix_10_signed(s);
+	*s = &s[size..];
+	n
+}

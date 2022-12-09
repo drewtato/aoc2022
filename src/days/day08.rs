@@ -9,98 +9,115 @@ pub struct Solution {
 	p2: A2,
 }
 
-const SEEN: u8 = 0b1111_0000;
-const SEEN_NORTH: u8 = 0b1000_0000;
-const SEEN_SOUTH: u8 = 0b0100_0000;
-const SEEN_WEST: u8 = 0b0010_0000;
-const SEEN_EAST: u8 = 0b0001_0000;
+const SEEN: u8 = 0b1000_0000;
+const MASK: u8 = 0b0000_1111;
 
 impl Solver for Solution {
 	type AnswerOne = A1;
 	type AnswerTwo = A2;
 
 	fn initialize(mut file: Vec<u8>) -> Self {
-		// First go through and unset the 4 MSB of each tree. This does nothing to newlines.
-		for c in &mut file {
-			*c &= !SEEN;
-		}
 		// Figure out the dimensions
 		let width = file.iter().position(|&b| b == b'\n').unwrap();
 		let height = file.len() / (width + 1);
 
-		// Check NS visibility
-		for x in 0..width {
-			insert_seen_data_x(width, x, &mut file, 0..height, SEEN_NORTH);
-			insert_seen_data_x(width, x, &mut file, (0..height).rev(), SEEN_SOUTH);
-		}
+		let mut visible_from_edge = 0;
+		let mut best_scenic_score = 0;
 
-		// Check EW visibility
+		let mut scenic_scores = vec![1i32; width * height];
+
 		for y in 0..height {
-			insert_seen_data_y(width, y, &mut file, 0..width, SEEN_WEST);
-			insert_seen_data_y(width, y, &mut file, (0..width).rev(), SEEN_EAST);
-		}
+			// Index of last seen tree at each height, starting at the first tree
+			let mut seen_trees = [0; 10];
+			// From left to right
+			for x in 0..width {
+				// Distance to edge
+				let distance = x;
+				process_cell(
+					&mut file,
+					&mut seen_trees,
+					&mut scenic_scores,
+					width,
+					y,
+					x,
+					distance as i32,
+				);
+			}
 
-		// Count trees marked visible. We skip the first and last row since those are guaranteed
-		// visible, and newlines also haven't been marked (they're still newlines since they have
-		// zeros in the 4 MSBs).
-		let visible_from_edge = file[width + 1..file.len() - width - 1]
-			.iter()
-			.fold(0, |acc, &c| acc + (c & SEEN != 0) as usize)
-			+ width * 2;
-
-		let scenic_scores = vec![0u32; width * height];
-
-		// Accumulate NS scenic scores
-		for x in 0..width {
-			for y in 0..height {
-				todo!()
+			// Index of last seen tree at each height, starting at the first tree
+			let mut seen_trees = [0; 10];
+			// From left to right
+			for x in (0..width).rev() {
+				// Distance to edge
+				let distance = width - x - 1;
+				process_cell(
+					&mut file,
+					&mut seen_trees,
+					&mut scenic_scores,
+					width,
+					y,
+					x,
+					distance as i32,
+				);
 			}
 		}
 
-		let best_scenic_score = 0;
+		for x in 0..width {
+			// Index of last seen tree at each height, starting at the first tree
+			let mut seen_trees = [0; 10];
+			// From top to bottom
+			for y in 0..height {
+				// Distance to edge
+				let distance = y;
+				process_cell(
+					&mut file,
+					&mut seen_trees,
+					&mut scenic_scores,
+					width,
+					y,
+					x,
+					distance as i32,
+				);
+			}
 
-		// let input = file.trim_ascii_end().grid(|b| b - b'0');
+			// Index of last seen tree at each height, starting at the first tree
+			let mut seen_trees = [0; 10];
+			// From left to right
+			for y in (0..height).rev() {
+				// Distance to edge
+				let distance = (height - y - 1) as i32;
+				// Get cell at coordinates
+				let cell = index_mut(&mut file, width, y, x);
+				// Get tree height in cell
+				let tree = cell_to_height(*cell);
+				// Get index of last seen tree
+				let last_seen = seen_trees[tree as usize];
+				// Check if this tree is visible from the edge
+				let direction_score = if last_seen == 0 {
+					// Add SEEN bit
+					*cell |= SEEN;
+					// Multiply scenic score by distance
+					distance
+				} else {
+					// Multiply scenic score by distance from last tree, including that tree
+					distance - last_seen + 1
+				};
+				// No need to store it since this is the last run
+				let total_score = scenic_scores[width * y + x] * direction_score;
+				// Check if this is the best score
+				best_scenic_score = best_scenic_score.max(total_score);
 
-		// for (y, row) in input.iter().enumerate() {
-		// 	for (x, &tree) in row.iter().enumerate() {
-		// 		let north_trees = input.iter().take(y).rev().map(|row| row[x]).collect_vec();
-		// 		let south_trees = input.iter().skip(y + 1).map(|row| row[x]).collect_vec();
-		// 		let west_trees = row.iter().take(x).rev().copied().collect_vec();
-		// 		let east_trees = row.iter().skip(x + 1).copied().collect_vec();
-		// 		// println!("{north_trees:?}");
-		// 		// println!("{south_trees:?}");
-		// 		// println!("{west_trees:?}");
-		// 		// println!("{east_trees:?}");
-		// 		'a: for range in [&north_trees, &south_trees, &west_trees, &east_trees] {
-		// 			for &obstruction in range {
-		// 				if obstruction >= tree {
-		// 					continue 'a;
-		// 				}
-		// 			}
-		// 			visible_from_edge += 1;
-		// 			break;
-		// 		}
-		// 		let mut scenic_score = 1;
-		// 		for range in [&north_trees, &south_trees, &west_trees, &east_trees] {
-		// 			let mut visible_from_tree = 0;
-		// 			for (i, &obstruction) in range.iter().enumerate() {
-		// 				if obstruction >= tree {
-		// 					visible_from_tree = i as i32 + 1;
-		// 					break;
-		// 				}
-		// 			}
-		// 			if visible_from_tree == 0 {
-		// 				scenic_score *= range.len() as i32;
-		// 			} else {
-		// 				scenic_score *= visible_from_tree;
-		// 			}
-		// 		}
-		// 		best_scenic_score = best_scenic_score.max(scenic_score);
-		// 	}
-		// }
+				// If the SEEN bit is set, add to visible counter
+				if *cell & SEEN != 0 {
+					visible_from_edge += 1;
+				}
+				// Update this and all shorter last seens to the distance index plus one
+				seen_trees[..=tree as usize].fill(distance + 1);
+			}
+		}
 
 		Self {
-			p1: visible_from_edge as _,
+			p1: visible_from_edge,
 			p2: best_scenic_score,
 		}
 	}
@@ -121,44 +138,40 @@ impl Solver for Solution {
 	}
 }
 
-fn insert_seen_data_x<I>(width: usize, x: usize, file: &mut [u8], mut iter: I, mask: u8)
-where
-	I: Iterator<Item = usize>,
-{
-	let c = index_mut(width, iter.next().unwrap(), x, file);
-	let mut highest_seen = char_as_height(*c);
-	*c |= mask;
-	for y in iter {
-		update_tree(width, y, x, file, &mut highest_seen, mask);
+fn process_cell(
+	file: &mut [u8],
+	seen_trees: &mut [i32; 10],
+	scenic_scores: &mut [i32],
+	width: usize,
+	y: usize,
+	x: usize,
+	distance: i32,
+) {
+	// Get cell at coordinates
+	let cell = index_mut(file, width, y, x);
+	// Get tree height in cell
+	let tree = cell_to_height(*cell);
+	// Get index of last seen tree
+	let last_seen = seen_trees[tree as usize];
+	// Check if this tree is visible from the edge
+	if last_seen == 0 {
+		// Add SEEN bit
+		*cell |= SEEN;
+		// Multiply scenic score by distance
+		scenic_scores[width * y + x] *= distance;
+	} else {
+		// Multiply scenic score by distance from last tree, including that tree
+		scenic_scores[width * y + x] *= distance - last_seen + 1;
 	}
+	// Update this and all shorter last seens to the distance index plus one
+	seen_trees[..=tree as usize].fill(distance + 1);
 }
 
-fn insert_seen_data_y<I>(width: usize, y: usize, file: &mut [u8], mut iter: I, mask: u8)
-where
-	I: Iterator<Item = usize>,
-{
-	let c = index_mut(width, y, iter.next().unwrap(), file);
-	let mut highest_seen = char_as_height(*c);
-	*c |= mask;
-	for x in iter {
-		update_tree(width, y, x, file, &mut highest_seen, mask);
-	}
+fn cell_to_height(c: u8) -> u8 {
+	c & MASK
 }
 
-fn update_tree(width: usize, y: usize, x: usize, file: &mut [u8], highest_seen: &mut u8, mask: u8) {
-	debug_assert!(*highest_seen < 10);
-	let tree = index_mut(width, y, x, file);
-	if char_as_height(*tree) > *highest_seen {
-		*highest_seen = char_as_height(*tree);
-		*tree |= mask;
-	}
-}
-
-fn char_as_height(c: u8) -> u8 {
-	c & !SEEN
-}
-
-fn index_mut(width: usize, y: usize, x: usize, s: &mut [u8]) -> &mut u8 {
+fn index_mut(s: &mut [u8], width: usize, y: usize, x: usize) -> &mut u8 {
 	debug_assert!(x < width);
 	&mut s[(width + 1) * y + x]
 }

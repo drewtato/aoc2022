@@ -1,0 +1,78 @@
+    Finished release [optimized] target(s) in 0.16s
+     Running `target\release\aoc2022.exe 1 2 3 4 5 6 7 8 9 -r`
+Parsing day arguments
+Running days
+Reading input from ./inputs/day01/input.txt
+Initializing day 1... took 9.1┬╡s
+Running day 1 part 1... took 100ns
+d01p1: 71934
+Running day 1 part 2... took 0ns
+d01p2: 211447
+Time for day 1: 9.2┬╡s
+
+Reading input from ./inputs/day02/input.txt
+Initializing day 2... took 10.4┬╡s
+Running day 2 part 1... took 0ns
+d02p1: 15523
+Running day 2 part 2... took 0ns
+d02p2: 15702
+Time for day 2: 10.4┬╡s
+
+Reading input from ./inputs/day03/input.txt
+Initializing day 3... took 34.8┬╡s
+Running day 3 part 1... took 100ns
+d03p1: 7691
+Running day 3 part 2... took 0ns
+d03p2: 2508
+Time for day 3: 34.9┬╡s
+
+Reading input from ./inputs/day04/input.txt
+Initializing day 4... took 15.8┬╡s
+Running day 4 part 1... took 0ns
+d04p1: 584
+Running day 4 part 2... took 0ns
+d04p2: 933
+Time for day 4: 15.8┬╡s
+
+Reading input from ./inputs/day05/input.txt
+Initializing day 5... took 20.2┬╡s
+Running day 5 part 1... took 0ns
+d05p1: ZSQVCCJLL
+Running day 5 part 2... took 0ns
+d05p2: QZFJRWHGS
+Time for day 5: 20.2┬╡s
+
+Reading input from ./inputs/day06/input.txt
+Initializing day 6... took 0ns
+Running day 6 part 1... took 4.8┬╡s
+d06p1: 1707
+Running day 6 part 2... took 6.8┬╡s
+d06p2: 3697
+Time for day 6: 11.6┬╡s
+
+Reading input from ./inputs/day07/input.txt
+Initializing day 7... took 11.5┬╡s
+Running day 7 part 1... took 0ns
+d07p1: 1084134
+Running day 7 part 2... took 0ns
+d07p2: 6183184
+Time for day 7: 11.5┬╡s
+
+Reading input from ./inputs/day08/input.txt
+Initializing day 8... took 340.7┬╡s
+Running day 8 part 1... took 100ns
+d08p1: 1854
+Running day 8 part 2... took 0ns
+d08p2: 527340
+Time for day 8: 340.8┬╡s
+
+Reading input from ./inputs/day09/input.txt
+Initializing day 9... took 477.5┬╡s
+Running day 9 part 1... took 0ns
+d09p1: 6406
+Running day 9 part 2... took 100ns
+d09p2: 2643
+Time for day 9: 477.6┬╡s
+
+Time for all days: 932┬╡s
+Whole time: 1.9443ms (only runner: 1.0123ms)

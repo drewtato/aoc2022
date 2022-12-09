@@ -31,15 +31,28 @@ pub struct Settings {
 	/// both parts of day 2 (same as `2`).
 	pub days: Vec<String>,
 
-	/// Benchmark this run. Runs once, unless a number of runs is given. Saves output until
-	/// everything is finished.
+	/// Benchmark this run.
+	///
+	/// Runs once, unless a number of runs is given. Saves output until everything is finished.
 	#[arg(long, short, default_value_t = 0, default_missing_value = "1")]
 	pub bench: u128,
 
-	/// Benchmark for time instead of runs. The number given for `bench` is treated as number of
-	/// milliseconds to run for instead of number of iterations.
+	/// Benchmark for time instead of runs.
+	///
+	/// The number given for `bench` is treated as number of milliseconds to run for instead of
+	/// number of iterations.
 	#[arg(long, short = 'u')]
 	pub duration: bool,
+
+	/// Runs the output validator against saved output.
+	///
+	/// If there is no saved output, saves the current output.
+	#[arg(long, short)]
+	pub validate: bool,
+
+	/// Saves the current output for running `--validate`.
+	#[arg(long, short)]
+	pub save_output: bool,
 
 	// /// Runs days in parallel.
 	// #[arg(long, short)]
@@ -72,6 +85,8 @@ impl Settings {
 			bench,
 			// parallel,
 			runner_debug,
+			validate,
+			save_output,
 			..
 		} = self;
 		let runner_time = Instant::now();
@@ -89,13 +104,29 @@ impl Settings {
 			.map(Self::parse_day_arg)
 			.collect::<Result<Vec<_>, _>>()?;
 
-		if days.as_slice() == [(0, Vec::new())] {
+		if days.as_slice() == [(0, vec![])] {
 			days.pop();
-			(1..=25).map(|n| (n, Vec::new())).collect_into(&mut days);
+			(1..=25).map(|n| (n, vec![])).collect_into(&mut days);
 		}
 
 		if runner_debug > 0 {
 			eprintln!("Running days");
+		}
+
+		if save_output {
+			if runner_debug > 0 {
+				eprintln!("Saving output");
+			}
+			self.save_output(&days)?;
+			return Ok(());
+		}
+
+		if validate {
+			if runner_debug > 0 {
+				eprintln!("Saving output");
+			}
+			self.validate(&days)?;
+			return Ok(());
 		}
 
 		let times = if bench > 0 {
@@ -550,6 +581,51 @@ impl Settings {
 		);
 
 		Ok(total_times)
+	}
+
+	fn save_output(&self, days: &[(u32, Vec<u32>)]) -> Res<()> {
+		for &(day, ref _parts) in days {
+			let _solver = {
+				use crate::days::*;
+				match day {
+					1 => Self::solver_quiet::<day01::Solution>,
+					2 => Self::solver_quiet::<day02::Solution>,
+					3 => Self::solver_quiet::<day03::Solution>,
+					4 => Self::solver_quiet::<day04::Solution>,
+					5 => Self::solver_quiet::<day05::Solution>,
+					6 => Self::solver_quiet::<day06::Solution>,
+					7 => Self::solver_quiet::<day07::Solution>,
+					8 => Self::solver_quiet::<day08::Solution>,
+					9 => Self::solver_quiet::<day09::Solution>,
+					10 => Self::solver_quiet::<day10::Solution>,
+					11 => Self::solver_quiet::<day11::Solution>,
+					12 => Self::solver_quiet::<day12::Solution>,
+					13 => Self::solver_quiet::<day13::Solution>,
+					14 => Self::solver_quiet::<day14::Solution>,
+					15 => Self::solver_quiet::<day15::Solution>,
+					16 => Self::solver_quiet::<day16::Solution>,
+					17 => Self::solver_quiet::<day17::Solution>,
+					18 => Self::solver_quiet::<day18::Solution>,
+					19 => Self::solver_quiet::<day19::Solution>,
+					20 => Self::solver_quiet::<day20::Solution>,
+					21 => Self::solver_quiet::<day21::Solution>,
+					22 => Self::solver_quiet::<day22::Solution>,
+					23 => Self::solver_quiet::<day23::Solution>,
+					24 => Self::solver_quiet::<day24::Solution>,
+					25 => Self::solver_quiet::<day25::Solution>,
+					d => {
+						println!("Invalid day {d}, skipping.");
+						continue;
+					}
+				}
+			};
+			todo!()
+		}
+		Ok(())
+	}
+
+	fn validate(&self, _days: &[(u32, Vec<u32>)]) -> Res<()> {
+		todo!();
 	}
 }
 

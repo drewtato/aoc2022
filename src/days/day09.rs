@@ -60,6 +60,8 @@ impl Solver for Solution {
 					if a.abs() > 1 || b.abs() > 1 {
 						tail[0] += a.signum();
 						tail[1] += b.signum();
+					} else {
+						break;
 					}
 				}
 

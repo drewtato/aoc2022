@@ -1,0 +1,10 @@
+d01:   4.7202906s total,    6.936μs per run, 680498 runs
+d02:   4.3798126s total,    3.241μs per run, 1350915 runs
+d03:   4.8255331s total,   11.530μs per run, 418473 runs
+d04:   4.7583563s total,    8.625μs per run, 551580 runs
+d05:    4.849319s total,   14.469μs per run, 335132 runs
+d06:   4.7962168s total,    8.207μs per run, 584323 runs
+d07:   4.5374027s total,    4.544μs per run, 998386 runs
+d08:   4.9866422s total,  293.262μs per run, 17004 runs
+d09:   4.9870851s total,  317.365μs per run, 15714 runs
+All:  42.8406584s total,    0.668ms per run

@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::helpers::*;
 
 type A1 = i32;
@@ -81,6 +79,7 @@ impl Solver for Solution {
 	}
 }
 
+#[allow(dead_code)]
 fn print_crt(crt: &[u8]) {
 	for (index, &pixel) in crt.iter().enumerate() {
 		if index % 40 == 0 {
@@ -103,8 +102,8 @@ const ANSWERS: &[&str] = &[
 	"EHZFZHCZ",
 	"RGZEHURK",
 	"PHLHJGZA",
-	"ZKGRKGRK",
-	"EKALLKLB",
+	"PLGFKAZG",
+	"BZPAJELK",
 	"RUAKHBEK",
 	"ZGCJZJFL",
 	"EHBZLRJR",

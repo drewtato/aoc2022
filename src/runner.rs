@@ -2,16 +2,14 @@ use chrono::{Duration as ChDuration, FixedOffset, NaiveDate, Utc};
 use clap::{ArgAction, Parser};
 use regex::bytes::Regex;
 use reqwest::blocking::Client;
-use reqwest::header::COOKIE;
-use std::fs::{create_dir_all, read_to_string, File};
-use std::hint::black_box;
-use std::io::{self, stdout, BufWriter, Read, Write};
-use std::path::{Path, PathBuf};
-use std::thread;
+
+use std::fs::{create_dir_all, File};
+use std::io::{BufWriter, Write};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use crate::solution::Solver;
-use crate::{AocError, Res, YEAR};
+use crate::solution::SolverSafe;
+use crate::{AocError, Res, Solver, YEAR};
 
 /// User agent (see [Eric's post on the
 /// subreddit](https://www.reddit.com/r/adventofcode/comments/z9dhtd))
@@ -77,208 +75,123 @@ pub struct Settings {
 	pub regex: Option<Regex>,
 }
 
+macro_rules! debug_println {
+	($dbg:expr, $level:expr, $($tok:expr),*$(,)?) => {
+		if $dbg >= $level {
+			println!($($tok),*);
+		}
+	};
+}
+
 impl Settings {
-	/// Run AoC with these settings.
 	pub fn run(&mut self) -> Res<()> {
-		let &mut Self {
-			ref days,
-			bench,
-			// parallel,
-			runner_debug,
-			validate,
-			save_output,
-			..
-		} = self;
 		let runner_time = Instant::now();
+		let mut solver_time = Duration::ZERO;
 
-		if days.is_empty() {
-			eprintln!("No days specified. Use `--help` for more.");
-			return Ok(());
-		}
+		debug_println!(self.runner_debug, 1, "Starting runner");
 
-		if runner_debug > 0 {
-			eprintln!("Parsing day arguments");
-		}
-		let mut days = days
+		let day_parts = self
+			.days
 			.iter()
-			.map(Self::parse_day_arg)
-			.collect::<Result<Vec<_>, _>>()?;
+			.map(|word| parse_day(word))
+			.collect::<Res<Vec<_>>>()?;
 
-		if days.as_slice() == [(0, vec![])] {
-			days.pop();
-			(1..=25).map(|n| (n, vec![])).collect_into(&mut days);
+		if self.bench > 0 || self.duration || self.test > 0 || self.validate || self.save_output {
+			unimplemented!()
 		}
 
-		if runner_debug > 0 {
-			eprintln!("Running days");
-		}
+		solver_time += self.run_days(&day_parts)?;
 
-		if save_output {
-			if runner_debug > 0 {
-				eprintln!("Saving output");
-			}
-			self.save_output(&days)?;
-			return Ok(());
-		}
-
-		if validate {
-			if runner_debug > 0 {
-				eprintln!("Saving output");
-			}
-			self.validate(&days)?;
-			return Ok(());
-		}
-
-		let times = if bench > 0 {
-			if runner_debug > 0 {
-				eprintln!("Running benchmark with {bench} cycles");
-			}
-			let times = self.benchmark(days)?;
-
-			if runner_debug > 0 {
-				eprintln!("Finished benchmark");
-			}
-
-			times
-		} else {
-			let mut times = Duration::ZERO;
-			for &(day, ref parts) in &days {
-				if day == 0 {
-					if runner_debug > 1 {
-						eprintln!("Running all days");
-					}
-					for day in 1..=25 {
-						times += self.run_day(day, parts)?;
-					}
-					if runner_debug > 1 {
-						eprintln!("Finished all days");
-					}
-				} else {
-					if runner_debug > 1 {
-						eprintln!("Running day {day} with parts {parts:?}");
-					}
-					times += self.run_day(day, parts)?;
-				}
-			}
-			if days.len() > 1 {
-				println!("Time for all days: {times:?}",);
-			}
-			times
-		};
-
-		if runner_debug > 0 {
-			let elapsed = runner_time.elapsed();
-			eprintln!(
-				"Whole time: {:?} (only runner: {:?})",
-				elapsed,
-				elapsed - times
-			);
-		}
-
+		debug_println!(
+			self.runner_debug,
+			1,
+			"Runner time: {:?}",
+			runner_time.elapsed(),
+		);
 		Ok(())
 	}
 
-	/// Run the specified parts of a single day and returns the time taken.
-	pub fn run_day(&mut self, day: u32, parts: &[u32]) -> Res<Duration> {
-		let solver = {
-			use crate::days::*;
-			match day {
-				1 => Self::solver::<day01::Solution>,
-				2 => Self::solver::<day02::Solution>,
-				3 => Self::solver::<day03::Solution>,
-				4 => Self::solver::<day04::Solution>,
-				5 => Self::solver::<day05::Solution>,
-				6 => Self::solver::<day06::Solution>,
-				7 => Self::solver::<day07::Solution>,
-				8 => Self::solver::<day08::Solution>,
-				9 => Self::solver::<day09::Solution>,
-				10 => Self::solver::<day10::Solution>,
-				11 => Self::solver::<day11::Solution>,
-				12 => Self::solver::<day12::Solution>,
-				13 => Self::solver::<day13::Solution>,
-				14 => Self::solver::<day14::Solution>,
-				15 => Self::solver::<day15::Solution>,
-				16 => Self::solver::<day16::Solution>,
-				17 => Self::solver::<day17::Solution>,
-				18 => Self::solver::<day18::Solution>,
-				19 => Self::solver::<day19::Solution>,
-				20 => Self::solver::<day20::Solution>,
-				21 => Self::solver::<day21::Solution>,
-				22 => Self::solver::<day22::Solution>,
-				23 => Self::solver::<day23::Solution>,
-				24 => Self::solver::<day24::Solution>,
-				25 => Self::solver::<day25::Solution>,
-				d => {
-					println!("Invalid day {d}, skipping.");
-					return Ok(Duration::ZERO);
-				}
+	fn run_days(&mut self, day_parts: &[(u32, Vec<u32>)]) -> Res<Duration> {
+		let mut test_time = Duration::ZERO;
+		let mut buffer = String::new();
+		for &(day, ref parts) in day_parts {
+			let mut day_time = Duration::ZERO;
+			if !(1..=25).contains(&day) {
+				eprintln!("Day {day} not found, skipping");
+				continue;
 			}
-		};
 
-		let input = self.get_input(day)?;
+			let file = self.get_input(day)?;
+			let (time, mut solver) = day_to_solver(day, file, self.debug)?;
+			print_times(day, 0, "", time);
+			day_time += time;
 
-		print!("Initializing day {day}... ");
-		stdout().flush()?;
+			if parts.is_empty() {
+				let time = solver.part_one(self.debug, &mut buffer);
+				day_time += time;
+				print_times(day, 1, &buffer, time);
+				buffer.clear();
+				let time = solver.part_two(self.debug, &mut buffer);
+				day_time += time;
+				print_times(day, 2, &buffer, time);
+				buffer.clear();
+			}
 
-		let times = solver(self, input, day, parts)?;
-
-		println!("Time for day {day}: {times:?}\n");
-
-		Ok(times)
+			for &part in parts {
+				let time = match part {
+					1 => solver.part_one(self.debug, &mut buffer),
+					2 => solver.part_two(self.debug, &mut buffer),
+					p => solver.run_any(p, self.debug, &mut buffer)?,
+				};
+				day_time += time;
+				print_times(day, part, &buffer, time);
+				buffer.clear();
+			}
+			println!("d{day:02} total: {day_time:?}\n");
+			test_time += day_time;
+		}
+		Ok(test_time)
 	}
 
-	/// Get an input from the filesystem, or if it's not there, from the network.
-	pub fn get_input(&mut self, day: u32) -> Res<Vec<u8>> {
-		let input_name = if self.test == 0 {
-			format!("./inputs/day{day:02}/input.txt")
-		} else {
-			format!("./inputs/day{day:02}/input{:02}.txt", self.test)
-		};
-		if self.runner_debug > 0 {
-			eprintln!("Reading input from {input_name}");
+	fn get_input(&mut self, day: u32) -> Res<Vec<u8>> {
+		let input_main = input_main(day);
+		if !input_main.exists() {
+			let time_until_release = time_until_input_is_released(day);
+			// If the puzzle is very far out
+			if time_until_release > ChDuration::hours(1) {
+				eprintln!("Puzzle doesn't release for {:?}", time_until_release);
+				return Err(AocError::HasNotReleasedYet {
+					day,
+					duration: time_until_release,
+				});
+			}
+
+			// If the puzzle hasn't been out for at least 5 seconds
+			if time_until_release > ChDuration::seconds(-5) {
+				let delay = time_until_release + ChDuration::seconds(5);
+				eprintln!(
+					"Puzzle releases in {:?}, waiting {:?}",
+					time_until_release, delay
+				);
+				std::thread::sleep(delay.to_std().unwrap());
+			}
+
+			self.get_input_network(day)?;
 		}
 
-		let input_path = PathBuf::from(input_name.clone());
-		let buf = if !input_path.exists() {
-			if self.test == 0 {
-				if self.runner_debug > 0 {
-					eprintln!("The input file does not exist, fetching input from network");
-				}
-				let until = time_until_input_is_released(day);
-				if until > ChDuration::zero() {
-					if until < ChDuration::seconds(60) {
-						let wait = until.num_seconds() + 5;
-						eprintln!(
-							"Day {day} releases in {} seconds, waiting {} seconds.",
-							until.num_seconds(),
-							wait
-						);
-						thread::sleep(Duration::from_secs(wait as u64));
-					} else {
-						return Err(crate::AocError::HasNotReleasedYet {
-							day,
-							duration: until,
-						});
-					}
-				}
-				self.get_input_network(day, &input_path)?
-			} else {
-				return Err(crate::AocError::NoTestInputFound { path: input_name });
-			}
+		let input = if self.test == 0 {
+			std::fs::read(input_main)
 		} else {
-			let mut file = File::open(input_path)?;
-			let mut buf = Vec::new();
-			file.read_to_end(&mut buf)?;
-			buf
-		};
+			std::fs::read(input_test(day, self.test))
+		}?;
 
-		Ok(buf)
+		Ok(input)
 	}
 
 	/// Get the input from the network and write it to the filesystem. Will overwrite any existing
 	/// input files.
-	pub fn get_input_network(&mut self, day: u32, path: &Path) -> Res<Vec<u8>> {
-		let api_key = read_to_string("./API_KEY")?;
+	fn get_input_network(&mut self, day: u32) -> Res<()> {
+		let api_key = std::fs::read_to_string("./API_KEY")?;
 		let api_key = api_key.trim();
 
 		// Get main input
@@ -291,7 +204,7 @@ impl Settings {
 			.get_or_insert_with(|| Client::builder().user_agent(USER_AGENT).build().unwrap());
 		let req = client
 			.get(url)
-			.header(COOKIE, format!("session={api_key}"))
+			.header(reqwest::header::COOKIE, format!("session={api_key}"))
 			.send()?;
 		if !req.status().is_success() {
 			return Err(AocError::InputResponse {
@@ -301,8 +214,10 @@ impl Settings {
 		}
 		let data = req.bytes()?.to_vec();
 
-		create_dir_all(path.parent().unwrap())?;
-		File::create(path)?.write_all(&data)?;
+		let path = input_base_name(day);
+		create_dir_all(path)?;
+		let input_path = input_main(day);
+		std::fs::write(input_path, data)?;
 
 		// Get prompt and test cases
 		let url = format!("https://adventofcode.com/{YEAR}/day/{day}");
@@ -322,7 +237,7 @@ impl Settings {
 		let text = req.bytes()?;
 
 		// Save prompt
-		let prompt_path = path.parent().unwrap().join("prompt.html");
+		let prompt_path = prompt(day);
 		File::create(prompt_path)?.write_all(&text)?;
 
 		// Save each code block as a test case
@@ -330,14 +245,14 @@ impl Settings {
 			.regex
 			.get_or_insert_with(|| Regex::new(r"<pre>\s*<code>([^<]+)</code>\s*</pre>").unwrap());
 		for (i, code) in regex.captures_iter(&text).enumerate() {
-			let i = i + 1;
+			let i = i as u32 + 1;
 			if self.runner_debug > 0 {
 				eprintln!("Got a code match, making a test {i}");
 			}
 
 			let code = &code[1];
 
-			let test_path = path.parent().unwrap().join(format!("input{i:02}.txt"));
+			let test_path = input_test(day, i);
 			let file = File::create(test_path)?;
 			let mut file = BufWriter::new(file);
 
@@ -347,286 +262,211 @@ impl Settings {
 			)?;
 		}
 
-		Ok(data)
-	}
-
-	/// Run the solver for a day. Returns the time taken to solve and the solutions.
-	pub fn solver_quiet<S: Solver>(
-		&self,
-		file: Vec<u8>,
-		day: u32,
-		parts: &[u32],
-	) -> Result<(Duration, Vec<String>), io::Error> {
-		let mut solutions = Vec::new();
-
-		let (init_time, mut sol) = time_fn(|| S::initialize_dbg(file, self.debug));
-
-		Ok(if parts.is_empty() {
-			let (p1_time, p1) = time_fn(|| sol.part_one_dbg(self.debug));
-
-			let (p2_time, p2) = time_fn(|| sol.part_two_dbg(self.debug));
-
-			let times = init_time + p1_time + p2_time;
-			solutions.push(p1.to_string());
-			solutions.push(p2.to_string());
-
-			(times, solutions)
-		} else {
-			let mut times = Duration::ZERO;
-			for &part in parts {
-				let (time, ans) = match part {
-					1 => {
-						let (time, ans) = time_fn(|| sol.part_one_dbg(self.debug));
-						(time, ans.to_string())
-					}
-					2 => {
-						let (time, ans) = time_fn(|| sol.part_two_dbg(self.debug));
-						(time, ans.to_string())
-					}
-					p => {
-						if let (time, Ok(s)) = time_fn(|| sol.run_any_dbg(p, self.debug)) {
-							(time, s)
-						} else {
-							println!("Day {day} did not include a part {p}, skipping.");
-							continue;
-						}
-					}
-				};
-
-				times += time;
-				solutions.push(ans);
-			}
-
-			(times, solutions)
-		})
-	}
-
-	/// Run the solver for a day and print info. Returns the time taken to solve.
-	pub fn solver<S: Solver>(
-		&self,
-		file: Vec<u8>,
-		day: u32,
-		parts: &[u32],
-	) -> Result<Duration, io::Error> {
-		let (init_time, mut sol) = time_fn(|| S::initialize_dbg(file, self.debug));
-		println!("took {:?}", init_time);
-
-		Ok(if parts.is_empty() {
-			print!("Running day {day} part 1... ");
-			stdout().flush()?;
-
-			let (p1_time, p1) = time_fn(|| sol.part_one_dbg(self.debug));
-
-			println!("took {p1_time:?}",);
-			println!("d{day:02}p1: {p1}",);
-
-			print!("Running day {day} part 2... ");
-			stdout().flush()?;
-
-			let (p2_time, p2) = time_fn(|| sol.part_two_dbg(self.debug));
-
-			println!("took {p2_time:?}");
-			println!("d{day:02}p2: {p2}");
-
-			init_time + p1_time + p2_time
-		} else {
-			let mut times = Duration::ZERO;
-			for &part in parts {
-				print!("Running day {day} part {part}... ");
-				stdout().flush()?;
-
-				let (time, ans) = match part {
-					1 => {
-						let (time, ans) = time_fn(|| sol.part_one_dbg(self.debug));
-						(time, ans.to_string())
-					}
-					2 => {
-						let (time, ans) = time_fn(|| sol.part_two_dbg(self.debug));
-						(time, ans.to_string())
-					}
-					p => {
-						if let (time, Ok(s)) = time_fn(|| sol.run_any_dbg(p, self.debug)) {
-							(time, s)
-						} else {
-							println!("Day {day} did not include a part {p}, skipping.");
-							continue;
-						}
-					}
-				};
-
-				println!("took {time:?}");
-				println!("d{day:02}p{part}: {ans}");
-				times += time;
-			}
-			times
-		})
-	}
-
-	/// Parses a single day command-line argument.
-	pub fn parse_day_arg<S: AsRef<str>>(s: S) -> Res<(u32, Vec<u32>)> {
-		let s = s.as_ref();
-		let mut parts = s.split('.').map(|part| {
-			part.parse().map_err(|_| AocError::Parse {
-				part: part.to_string(),
-				arg: s.to_string(),
-			})
-		});
-
-		let day = parts
-			.next()
-			.ok_or(AocError::NoDaySpecified { arg: s.to_string() })??;
-		let parts = parts.collect::<Result<_, _>>()?;
-		Ok((day, parts))
-	}
-
-	/// Benchmark a day, or all if the day is 0. Will load all inputs from disk first, then runs
-	/// all necessary parts in sequence and time it as a whole.
-	pub fn benchmark(&mut self, days: Vec<(u32, Vec<u32>)>) -> Res<Duration> {
-		if cfg!(debug_assertions) {
-			eprintln!("WARNING: running in debug mode");
-		}
-
-		let mut total_times = Duration::ZERO;
-		let mut total_avg_times = Duration::ZERO;
-
-		for (day, parts) in days {
-			let solver = {
-				use crate::days::*;
-				match day {
-					1 => Self::solver_quiet::<day01::Solution>,
-					2 => Self::solver_quiet::<day02::Solution>,
-					3 => Self::solver_quiet::<day03::Solution>,
-					4 => Self::solver_quiet::<day04::Solution>,
-					5 => Self::solver_quiet::<day05::Solution>,
-					6 => Self::solver_quiet::<day06::Solution>,
-					7 => Self::solver_quiet::<day07::Solution>,
-					8 => Self::solver_quiet::<day08::Solution>,
-					9 => Self::solver_quiet::<day09::Solution>,
-					10 => Self::solver_quiet::<day10::Solution>,
-					11 => Self::solver_quiet::<day11::Solution>,
-					12 => Self::solver_quiet::<day12::Solution>,
-					13 => Self::solver_quiet::<day13::Solution>,
-					14 => Self::solver_quiet::<day14::Solution>,
-					15 => Self::solver_quiet::<day15::Solution>,
-					16 => Self::solver_quiet::<day16::Solution>,
-					17 => Self::solver_quiet::<day17::Solution>,
-					18 => Self::solver_quiet::<day18::Solution>,
-					19 => Self::solver_quiet::<day19::Solution>,
-					20 => Self::solver_quiet::<day20::Solution>,
-					21 => Self::solver_quiet::<day21::Solution>,
-					22 => Self::solver_quiet::<day22::Solution>,
-					23 => Self::solver_quiet::<day23::Solution>,
-					24 => Self::solver_quiet::<day24::Solution>,
-					25 => Self::solver_quiet::<day25::Solution>,
-					d => {
-						println!("Invalid day {d}, skipping.");
-						continue;
-					}
-				}
-			};
-
-			let file = self.get_input(day)?;
-			let mut times = Duration::ZERO;
-			let mut answers = Vec::new();
-
-			// These first few will likely be slower since it needs to allocate any mem from the OS
-			// and learn the branch prediction strategy.
-			let warmup = 10;
-			for _ in 0..warmup {
-				let file = file.clone();
-				let (_time, ans) = solver(self, file, day, &parts)?;
-				answers = black_box(ans);
-			}
-
-			// Run for time if dur is set
-			let runs = if self.duration {
-				let bench_time = Instant::now();
-				let mut runs = 0;
-
-				while bench_time.elapsed().as_millis() < self.bench {
-					runs += 1;
-					let file = file.clone();
-					let (time, ans) = solver(self, file, day, &parts)?;
-					times += time;
-					answers = black_box(ans);
-				}
-				total_avg_times += times / runs;
-				runs
-			} else {
-				let bench = self.bench as u32;
-				for _ in 0..bench {
-					let file = file.clone();
-					let (time, ans) = solver(self, file, day, &parts)?;
-					times += time;
-					answers = black_box(ans);
-				}
-				total_avg_times += times / bench;
-				bench
-			};
-			println!(
-				"d{day:02}: {:>12} total, {:>8.3}μs per run, {} runs; {:?}",
-				format!("{:?}", times),
-				(times / runs).as_secs_f64() * 1e6,
-				runs,
-				answers,
-			);
-
-			total_times += times;
-		}
-
-		println!(
-			"All: {:>12} total, {:>8.3}ms per run",
-			format!("{:?}", total_times),
-			total_avg_times.as_secs_f64() * 1000.0
-		);
-
-		Ok(total_times)
-	}
-
-	fn save_output(&self, days: &[(u32, Vec<u32>)]) -> Res<()> {
-		for &(day, ref _parts) in days {
-			let _solver = {
-				use crate::days::*;
-				match day {
-					1 => Self::solver_quiet::<day01::Solution>,
-					2 => Self::solver_quiet::<day02::Solution>,
-					3 => Self::solver_quiet::<day03::Solution>,
-					4 => Self::solver_quiet::<day04::Solution>,
-					5 => Self::solver_quiet::<day05::Solution>,
-					6 => Self::solver_quiet::<day06::Solution>,
-					7 => Self::solver_quiet::<day07::Solution>,
-					8 => Self::solver_quiet::<day08::Solution>,
-					9 => Self::solver_quiet::<day09::Solution>,
-					10 => Self::solver_quiet::<day10::Solution>,
-					11 => Self::solver_quiet::<day11::Solution>,
-					12 => Self::solver_quiet::<day12::Solution>,
-					13 => Self::solver_quiet::<day13::Solution>,
-					14 => Self::solver_quiet::<day14::Solution>,
-					15 => Self::solver_quiet::<day15::Solution>,
-					16 => Self::solver_quiet::<day16::Solution>,
-					17 => Self::solver_quiet::<day17::Solution>,
-					18 => Self::solver_quiet::<day18::Solution>,
-					19 => Self::solver_quiet::<day19::Solution>,
-					20 => Self::solver_quiet::<day20::Solution>,
-					21 => Self::solver_quiet::<day21::Solution>,
-					22 => Self::solver_quiet::<day22::Solution>,
-					23 => Self::solver_quiet::<day23::Solution>,
-					24 => Self::solver_quiet::<day24::Solution>,
-					25 => Self::solver_quiet::<day25::Solution>,
-					d => {
-						println!("Invalid day {d}, skipping.");
-						continue;
-					}
-				}
-			};
-			todo!()
-		}
 		Ok(())
 	}
+}
 
-	fn validate(&self, _days: &[(u32, Vec<u32>)]) -> Res<()> {
-		todo!();
-	}
+fn print_times(day: u32, part: u32, ans: &str, time: Duration) {
+	println!("d{day:02}p{part:02}: ({time:?}) {ans}");
+}
+
+fn prompt(day: u32) -> PathBuf {
+	let mut name = input_base_name(day);
+	name.push("prompt.html");
+	name
+}
+
+fn input_test(day: u32, test: u32) -> PathBuf {
+	let mut name = input_base_name(day);
+	name.push(format!("input{test:02}.txt"));
+	name
+}
+
+fn input_main(day: u32) -> PathBuf {
+	let mut name = input_base_name(day);
+	name.push("input.txt");
+	name
+}
+
+fn input_base_name(day: u32) -> PathBuf {
+	PathBuf::from(format!("./inputs/day{day:02}"))
+}
+
+fn parse_day(word: &str) -> Res<(u32, Vec<u32>)> {
+	let mut nums = word.split('.');
+	let day = if let Some(n) = nums.next() {
+		if n.is_empty() {
+			Err(AocError::NoDaySpecified {
+				arg: word.to_string(),
+			})
+		} else {
+			n.parse().map_err(|_| AocError::Parse {
+				part: n.to_string(),
+				arg: word.to_string(),
+			})
+		}
+	} else {
+		Err(AocError::EmptyArgument)
+	}?;
+
+	let rest = nums
+		.map(|n| {
+			if n.is_empty() {
+				Err(AocError::EmptyPart {
+					arg: word.to_string(),
+				})
+			} else {
+				n.parse().map_err(|_| AocError::Parse {
+					part: n.to_string(),
+					arg: word.to_string(),
+				})
+			}
+		})
+		.collect::<Res<Vec<u32>>>()?;
+	Ok((day, rest))
+}
+
+fn day_to_solver(day: u32, file: Vec<u8>, dbg: u8) -> Res<(Duration, Box<dyn SolverSafe>)> {
+	use crate::days::*;
+	#[allow(clippy::zero_prefixed_literal)]
+	Ok(match day {
+		01 => {
+			let (time, solver) = time_fn(|| day01::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		02 => {
+			let (time, solver) = time_fn(|| day02::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		03 => {
+			let (time, solver) = time_fn(|| day03::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		04 => {
+			let (time, solver) = time_fn(|| day04::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		05 => {
+			let (time, solver) = time_fn(|| day05::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		06 => {
+			let (time, solver) = time_fn(|| day06::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		07 => {
+			let (time, solver) = time_fn(|| day07::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		08 => {
+			let (time, solver) = time_fn(|| day08::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		09 => {
+			let (time, solver) = time_fn(|| day09::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		10 => {
+			let (time, solver) = time_fn(|| day10::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		11 => {
+			let (time, solver) = time_fn(|| day11::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		12 => {
+			let (time, solver) = time_fn(|| day12::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		13 => {
+			let (time, solver) = time_fn(|| day13::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		14 => {
+			let (time, solver) = time_fn(|| day14::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		15 => {
+			let (time, solver) = time_fn(|| day15::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		16 => {
+			let (time, solver) = time_fn(|| day16::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		17 => {
+			let (time, solver) = time_fn(|| day17::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		18 => {
+			let (time, solver) = time_fn(|| day18::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		19 => {
+			let (time, solver) = time_fn(|| day19::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		20 => {
+			let (time, solver) = time_fn(|| day20::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		21 => {
+			let (time, solver) = time_fn(|| day21::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		22 => {
+			let (time, solver) = time_fn(|| day22::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		23 => {
+			let (time, solver) = time_fn(|| day23::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		24 => {
+			let (time, solver) = time_fn(|| day24::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		25 => {
+			let (time, solver) = time_fn(|| day25::Solution::initialize(file, dbg));
+			(time, Box::new(solver))
+		}
+		d => return Err(AocError::DayNotFound(d)),
+	})
+}
+
+#[allow(dead_code)]
+fn day_to_bench(day: u32, file: Vec<u8>, dbg: u8) -> Res<(Duration, String, String)> {
+	use crate::days::*;
+	#[allow(clippy::zero_prefixed_literal)]
+	let res = match day {
+		01 => day01::Solution::run_both_string(file, dbg),
+		02 => day02::Solution::run_both_string(file, dbg),
+		03 => day03::Solution::run_both_string(file, dbg),
+		04 => day04::Solution::run_both_string(file, dbg),
+		05 => day05::Solution::run_both_string(file, dbg),
+		06 => day06::Solution::run_both_string(file, dbg),
+		07 => day07::Solution::run_both_string(file, dbg),
+		08 => day08::Solution::run_both_string(file, dbg),
+		09 => day09::Solution::run_both_string(file, dbg),
+		10 => day10::Solution::run_both_string(file, dbg),
+		11 => day11::Solution::run_both_string(file, dbg),
+		12 => day12::Solution::run_both_string(file, dbg),
+		13 => day13::Solution::run_both_string(file, dbg),
+		14 => day14::Solution::run_both_string(file, dbg),
+		15 => day15::Solution::run_both_string(file, dbg),
+		16 => day16::Solution::run_both_string(file, dbg),
+		17 => day17::Solution::run_both_string(file, dbg),
+		18 => day18::Solution::run_both_string(file, dbg),
+		19 => day19::Solution::run_both_string(file, dbg),
+		20 => day20::Solution::run_both_string(file, dbg),
+		21 => day21::Solution::run_both_string(file, dbg),
+		22 => day22::Solution::run_both_string(file, dbg),
+		23 => day23::Solution::run_both_string(file, dbg),
+		24 => day24::Solution::run_both_string(file, dbg),
+		25 => day25::Solution::run_both_string(file, dbg),
+		d => return Err(AocError::DayNotFound(d)),
+	};
+	Ok(res)
 }
 
 /// Returns `None` if the input is released, otherwise returns the time until release. Returns
@@ -640,7 +480,7 @@ impl Settings {
 /// `ERIC_TIME_OFFSET` to `-4`.
 // Note: chrono is actually way more confusing than I thought. Idk if this is the correct way to
 // use it but it seems to work.
-pub fn time_until_input_is_released(day: u32) -> ChDuration {
+fn time_until_input_is_released(day: u32) -> ChDuration {
 	const ERIC_TIME_OFFSET: i32 = -5;
 
 	let t = Utc::now().naive_utc();

@@ -26,7 +26,7 @@ impl Solver for Solution {
 	type AnswerOne = A1;
 	type AnswerTwo = A2;
 
-	fn initialize(file: Vec<u8>) -> Self {
+	fn initialize(file: Vec<u8>, _: u8) -> Self {
 		let mut total1 = 0;
 		let mut total2 = 0;
 
@@ -78,15 +78,20 @@ impl Solver for Solution {
 		}
 	}
 
-	fn part_one(&mut self) -> Self::AnswerOne {
+	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
 		self.p1
 	}
 
-	fn part_two(&mut self) -> Self::AnswerTwo {
+	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
 		self.p2
 	}
 
-	fn run_any_write<W: std::fmt::Write>(&mut self, part: u32, _writer: W) -> Res<()> {
+	fn run_any<W: std::fmt::Write>(
+		&mut self,
+		part: u32,
+		_writer: W,
+		_: u8,
+	) -> Res<std::time::Duration> {
 		#[allow(clippy::match_single_binding)]
 		match part {
 			_ => Err(AocError::PartNotFound),

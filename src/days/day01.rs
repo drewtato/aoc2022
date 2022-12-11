@@ -12,7 +12,7 @@ impl Solver for Solution {
 	type AnswerOne = A1;
 	type AnswerTwo = A2;
 
-	fn initialize(file: Vec<u8>) -> Self {
+	fn initialize(file: Vec<u8>, _: u8) -> Self {
 		let mut best_3 = [0; 3];
 		let mut current_num = 0;
 
@@ -50,15 +50,20 @@ impl Solver for Solution {
 		Self { best_3 }
 	}
 
-	fn part_one(&mut self) -> Self::AnswerOne {
+	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
 		*self.best_3.last().unwrap()
 	}
 
-	fn part_two(&mut self) -> Self::AnswerTwo {
+	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
 		self.best_3.into_iter().sum_self()
 	}
 
-	fn run_any_write<W: std::fmt::Write>(&mut self, part: u32, _writer: W) -> Result<(), AocError> {
+	fn run_any<W: std::fmt::Write>(
+		&mut self,
+		part: u32,
+		_writer: W,
+		_: u8,
+	) -> Res<std::time::Duration> {
 		#[allow(clippy::match_single_binding)]
 		match part {
 			_ => Err(AocError::PartNotFound),

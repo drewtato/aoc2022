@@ -52,4 +52,10 @@ pub enum AocError {
 		#[from]
 		source: std::fmt::Error,
 	},
+	#[error("Day {0} not found")]
+	DayNotFound(u32),
+	#[error("Argument was empty")]
+	EmptyArgument,
+	#[error("Part was empty in {arg}")]
+	EmptyPart { arg: String },
 }

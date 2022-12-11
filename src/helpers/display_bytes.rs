@@ -1,41 +1,53 @@
 use std::fmt::{Debug, Display};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DisplaySlice<'a>(&'a [u8]);
+pub struct DisplaySlice<T>(T);
 
-impl<'a> Display for DisplaySlice<'a> {
+impl<T> Display for DisplaySlice<T>
+where
+	T: AsRef<[u8]>,
+{
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let s = std::str::from_utf8(self.0).unwrap();
+		let s = std::str::from_utf8(self.0.as_ref()).unwrap();
 		write!(f, "{s}")
 	}
 }
 
-impl<'a> Debug for DisplaySlice<'a> {
+impl<T> Debug for DisplaySlice<T>
+where
+	T: AsRef<[u8]>,
+{
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let s = std::str::from_utf8(self.0).unwrap();
+		let s = std::str::from_utf8(self.0.as_ref()).unwrap();
 		write!(f, "{s:?}")
 	}
 }
 
-impl<'a> DisplaySlice<'a> {
-	pub fn new(s: &'a [u8]) -> Self {
+impl<T> DisplaySlice<T> {
+	pub fn new(s: T) -> Self {
 		Self(s)
 	}
 }
 
-pub trait ToDisplaySlice {
-	fn to_display_slice(&self) -> DisplaySlice<'_>;
+pub trait ToDisplaySlice: Sized {
+	fn to_display_slice(self) -> DisplaySlice<Self>;
 }
 
-impl ToDisplaySlice for [u8] {
-	fn to_display_slice(&self) -> DisplaySlice<'_> {
+impl ToDisplaySlice for &[u8] {
+	fn to_display_slice(self) -> DisplaySlice<Self> {
 		DisplaySlice(self)
 	}
 }
 
 impl ToDisplaySlice for Vec<u8> {
-	fn to_display_slice(&self) -> DisplaySlice<'_> {
-		DisplaySlice(self.as_slice())
+	fn to_display_slice(self) -> DisplaySlice<Self> {
+		DisplaySlice(self)
+	}
+}
+
+impl<const N: usize> ToDisplaySlice for [u8; N] {
+	fn to_display_slice(self) -> DisplaySlice<Self> {
+		DisplaySlice(self)
 	}
 }
 

@@ -14,7 +14,7 @@ impl Solver for Solution {
 	type AnswerOne = A1;
 	type AnswerTwo = A2;
 
-	fn initialize(file: Vec<u8>) -> Self {
+	fn initialize(file: Vec<u8>, _: u8) -> Self {
 		let mut monkeys = file
 			.trim_ascii()
 			.lines()
@@ -43,7 +43,7 @@ impl Solver for Solution {
 					.skip(2)
 					.map(|word| word.unwrap())
 					.collect_vec();
-				let l2 = (l2[3].into(), l2[4].unwrap_err().into(), l2[5].into());
+				let l2 = (l2[4].unwrap_err().into(), l2[5].into());
 				let l3 = l3.last().unwrap().unwrap();
 				let l4 = l4.last().unwrap().unwrap() as usize;
 				let l5 = l5.last().unwrap().unwrap() as usize;
@@ -63,7 +63,7 @@ impl Solver for Solution {
 		Self { monkeys }
 	}
 
-	fn part_one(&mut self) -> Self::AnswerOne {
+	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
 		let mut monkeys = self.monkeys.clone();
 		let mut current_monkey = 0;
 		let mut round = 0;
@@ -81,15 +81,12 @@ impl Solver for Solution {
 
 			*inspected_count += items.len();
 			for item in std::mem::take(items).into_iter() {
-				let op1 = match operation.0 {
+				let op1 = item;
+				let op2 = match operation.1 {
 					Operand::Number(n) => n,
 					Operand::Old => item,
 				};
-				let op2 = match operation.2 {
-					Operand::Number(n) => n,
-					Operand::Old => item,
-				};
-				let acc = match operation.1 {
+				let acc = match operation.0 {
 					Operator::Multiply => op1 * op2,
 					Operator::Add => op1 + op2,
 				} / 3;
@@ -113,7 +110,7 @@ impl Solver for Solution {
 			.product()
 	}
 
-	fn part_two(&mut self) -> Self::AnswerTwo {
+	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
 		let mut monkeys = self.monkeys.clone();
 		let mut current_monkey = 0;
 		let mut round = 0;
@@ -139,17 +136,13 @@ impl Solver for Solution {
 			*inspected_count += items.len();
 			let mut temp_items = std::mem::take(items);
 			for item in temp_items.drain(..) {
-				let op1 = match operation.0 {
+				let op2 = match operation.1 {
 					Operand::Number(n) => n,
 					Operand::Old => item,
 				};
-				let op2 = match operation.2 {
-					Operand::Number(n) => n,
-					Operand::Old => item,
-				};
-				let acc = match operation.1 {
-					Operator::Multiply => op1 * op2,
-					Operator::Add => op1 + op2,
+				let acc = match operation.0 {
+					Operator::Multiply => item * op2,
+					Operator::Add => item + op2,
 				} % modulo;
 
 				let dest = if acc % test == 0 { if_true } else { if_false };
@@ -187,7 +180,12 @@ impl Solver for Solution {
 			.product()
 	}
 
-	fn run_any_write<W: std::fmt::Write>(&mut self, part: u32, _writer: W) -> Res<()> {
+	fn run_any<W: std::fmt::Write>(
+		&mut self,
+		part: u32,
+		_writer: W,
+		_: u8,
+	) -> Res<std::time::Duration> {
 		#[allow(clippy::match_single_binding)]
 		match part {
 			_ => Err(AocError::PartNotFound),
@@ -198,7 +196,7 @@ impl Solver for Solution {
 #[derive(Debug, Clone)]
 struct Monkey {
 	items: Vec<A1>,
-	operation: (Operand, Operator, Operand),
+	operation: (Operator, Operand),
 	test: A1,
 	if_true: usize,
 	if_false: usize,

@@ -337,6 +337,12 @@ impl Settings {
 			let mut a1 = String::new();
 			let mut a2 = String::new();
 
+			// Warmup
+			for _ in 0..25 {
+				let (_, p1, p2) = day_to_bench(day, file.clone(), self.debug)?;
+				black_box((p1, p2));
+			}
+
 			let runs = if self.bench_count > 0 {
 				for _ in 0..self.bench_count {
 					let (time, p1, p2) = day_to_bench(day, file.clone(), self.debug)?;
@@ -376,7 +382,7 @@ impl Settings {
 			total_time += day_time;
 		}
 
-		println!("All: run avg of {:>10}", readable_time(bench_times, 3),);
+		println!("All: run avg of {:>22}", readable_time(bench_times, 3),);
 
 		Ok(total_time)
 	}

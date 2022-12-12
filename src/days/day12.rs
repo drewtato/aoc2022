@@ -1,9 +1,7 @@
-#![allow(unused)]
-
 use crate::helpers::*;
 
 type A1 = u16;
-type A2 = u16;
+type A2 = A1;
 
 #[derive(Debug)]
 pub struct Solution {
@@ -65,10 +63,6 @@ impl Solver for Solution {
 				*v = true;
 			}
 
-			if [y, x] == start {
-				break cost;
-			}
-
 			let current_height = file[width * y + x];
 			if p2_cost.is_none() && current_height == b'a' {
 				p2_cost = Some(cost);
@@ -81,6 +75,10 @@ impl Solver for Solution {
 				if current_height <= neighbor_height + 1 {
 					leads.push_back((cost + 1, [ny, nx]));
 				}
+			}
+
+			if [y, x] == start {
+				break cost;
 			}
 		};
 

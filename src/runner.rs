@@ -1,9 +1,11 @@
 use chrono::{Duration as ChDuration, FixedOffset, NaiveDate, Utc};
-use clap::{ArgAction, Parser};
+use clap::{ArgAction, Parser, ValueEnum};
 use regex::bytes::Regex;
 use reqwest::blocking::Client;
 
+use std::fmt::Display;
 use std::fs::{create_dir_all, File};
+use std::hint::black_box;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -20,37 +22,36 @@ const USER_AGENT: &str = "\
 ";
 
 /// Settings for running AoC. Usually created with [`clap::Parser::parse`].
-#[derive(Debug, Parser)]
+#[derive(Debug, Parser, Clone)]
 #[command(author, about)]
 pub struct Settings {
-	/// Specify which days to run. Passing 0 will run all 25.
+	/// Specify which days to run.
 	///
-	/// To run a specific part, pass `day.part`, like `2.1` for part 1 of day 2, or `2.1.2` for
-	/// both parts of day 2 (same as `2`).
+	/// Passing 0 will run all 25. To run a specific part, pass `day.part`, like `2.1` for part 1
+	/// of day 2, or `2.1.2` for both parts of day 2 (same as `2`).
 	pub days: Vec<String>,
 
-	/// Benchmark this run.
-	///
-	/// Runs once, unless a number of runs is given. Saves output until everything is finished.
-	#[arg(long, short, default_value_t = 0, default_missing_value = "1")]
-	pub bench: u128,
+	/// Select which mode to run in.
+	#[arg(short, long, value_enum, default_value_t = Mode::Run)]
+	pub mode: Mode,
 
-	/// Benchmark for time instead of runs.
+	/// Specify a number of milliseconds.
 	///
-	/// The number given for `bench` is treated as number of milliseconds to run for instead of
-	/// number of iterations.
-	#[arg(long, short = 'u')]
-	pub duration: bool,
+	/// Overridden by `--bench-count` if nonzero. When in bench mode, you can specify how long to
+	/// repeatedly run each day. This runs for one second by default.
+	#[arg(short = 's', long = "bench-time", default_value_t = 1000)]
+	pub bench_time: u64,
 
-	/// Runs the output validator against saved output.
+	/// Specify a number of iterations.
 	///
-	/// If there is no saved output, saves the current output.
-	#[arg(long, short)]
-	pub validate: bool,
+	/// Overrides `--bench-time`. When in bench mode, specify to do a set number of iteratons
+	/// instead of running as many as possible in a certain amount of time.
+	#[arg(short = 'c', long = "bench-count", default_value_t = 0)]
+	pub bench_count: usize,
 
-	/// Saves the current output for running `--validate`.
-	#[arg(long, short)]
-	pub save_output: bool,
+	/// Hide answers in output.
+	#[arg(short = 'a', long)]
+	pub hide_answers: bool,
 
 	// /// Runs days in parallel.
 	// #[arg(long, short)]
@@ -61,9 +62,11 @@ pub struct Settings {
 	#[arg(short, long, action = ArgAction::Count)]
 	pub debug: u8,
 
-	/// Run with the specified test input. Best used with one day selected.
+	/// Run with the specified test input.
+	///
+	/// Best used with one day selected. 0 corresponds to the real input.
 	#[arg(short, long, default_value_t = 0)]
-	pub test: u32,
+	pub test: u8,
 
 	/// Enables debug info for the runner.
 	#[arg(short, long, action = ArgAction::Count)]
@@ -75,10 +78,31 @@ pub struct Settings {
 	pub regex: Option<Regex>,
 }
 
+/// Mode to run [`Settings`] in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, ValueEnum)]
+pub enum Mode {
+	#[default]
+	Run,
+	/// Run the specified days and generate their output.
+	R,
+	Bench,
+	/// Benchmark the specified days.
+	///
+	/// This ignores part info and will always run initialization, part one, and part two as fast
+	/// as possible.
+	B,
+	Save,
+	/// Save the specified days' output as validation files, to be used with `--validate`.
+	S,
+	Validate,
+	/// Validate that the output of the specified days equals the saved output in validation files.
+	V,
+}
+
 macro_rules! debug_println {
 	($dbg:expr, $level:expr, $($tok:expr),*$(,)?) => {
 		if $dbg >= $level {
-			println!($($tok),*);
+			eprintln!($($tok),*);
 		}
 	};
 }
@@ -88,6 +112,7 @@ impl Settings {
 		let runner_time = Instant::now();
 		let mut solver_time = Duration::ZERO;
 
+		debug_println!(self.runner_debug, 2, "{:?}", self);
 		debug_println!(self.runner_debug, 1, "Starting runner");
 
 		let day_parts = self
@@ -96,17 +121,20 @@ impl Settings {
 			.map(|word| parse_day(word))
 			.collect::<Res<Vec<_>>>()?;
 
-		if self.bench > 0 || self.duration || self.test > 0 || self.validate || self.save_output {
-			unimplemented!()
+		match self.mode {
+			Mode::Run | Mode::R => solver_time += self.run_days(&day_parts)?,
+			Mode::Bench | Mode::B => solver_time += self.benchmark(&day_parts)?,
+			Mode::Save | Mode::S => todo!(),
+			Mode::Validate | Mode::V => todo!(),
 		}
 
-		solver_time += self.run_days(&day_parts)?;
-
+		let runner_time = runner_time.elapsed();
 		debug_println!(
 			self.runner_debug,
 			1,
-			"Runner time: {:?}",
-			runner_time.elapsed(),
+			"Total time: {:?}\nRunner time: {:?}",
+			runner_time,
+			runner_time - solver_time,
 		);
 		Ok(())
 	}
@@ -115,7 +143,10 @@ impl Settings {
 		let mut test_time = Duration::ZERO;
 		let mut buffer = String::new();
 		for &(day, ref parts) in day_parts {
+			debug_println!(self.runner_debug, 1, "Starting day {day}");
+
 			let mut day_time = Duration::ZERO;
+
 			if !(1..=25).contains(&day) {
 				eprintln!("Day {day} not found, skipping");
 				continue;
@@ -129,11 +160,22 @@ impl Settings {
 			if parts.is_empty() {
 				let time = solver.part_one(self.debug, &mut buffer);
 				day_time += time;
-				print_times(day, 1, &buffer, time);
+
+				if !self.hide_answers {
+					print_times(day, 1, &buffer, time);
+				} else {
+					print_times(day, 1, "", time);
+				}
 				buffer.clear();
+
 				let time = solver.part_two(self.debug, &mut buffer);
 				day_time += time;
-				print_times(day, 2, &buffer, time);
+
+				if !self.hide_answers {
+					print_times(day, 2, &buffer, time);
+				} else {
+					print_times(day, 2, "", time);
+				}
 				buffer.clear();
 			}
 
@@ -144,12 +186,19 @@ impl Settings {
 					p => solver.run_any(p, self.debug, &mut buffer)?,
 				};
 				day_time += time;
-				print_times(day, part, &buffer, time);
+
+				if !self.hide_answers {
+					print_times(day, part, &buffer, time);
+				} else {
+					print_times(day, part, "", time);
+				}
 				buffer.clear();
 			}
+
 			println!("d{day:02} total: {day_time:?}\n");
 			test_time += day_time;
 		}
+		println!("All: {:?}", test_time);
 		Ok(test_time)
 	}
 
@@ -245,7 +294,10 @@ impl Settings {
 			.regex
 			.get_or_insert_with(|| Regex::new(r"<pre>\s*<code>([^<]+)</code>\s*</pre>").unwrap());
 		for (i, code) in regex.captures_iter(&text).enumerate() {
-			let i = i as u32 + 1;
+			let Ok(i) = (i + 1).try_into() else {
+				eprintln!("{}, skipping the rest", AocError::TooManyTestCases);
+				break;
+			};
 			if self.runner_debug > 0 {
 				eprintln!("Got a code match, making a test {i}");
 			}
@@ -264,9 +316,77 @@ impl Settings {
 
 		Ok(())
 	}
+
+	fn benchmark(&mut self, day_parts: &[(u32, Vec<u32>)]) -> Res<Duration> {
+		let mut bench_times = Duration::ZERO;
+		let mut total_time = Duration::ZERO;
+
+		for &(day, _) in day_parts {
+			let mut day_time = Duration::ZERO;
+
+			if !(1..=25).contains(&day) {
+				eprintln!("Day {day} not found, skipping");
+				continue;
+			}
+
+			let file = self.get_input(day)?;
+			let mut a1 = String::new();
+			let mut a2 = String::new();
+
+			let runs = if self.bench_count > 0 {
+				for _ in 0..self.bench_count {
+					let (time, p1, p2) = day_to_bench(day, file.clone(), self.debug)?;
+					(a1, a2) = black_box((p1, p2));
+					day_time += time;
+				}
+				self.bench_count
+			} else {
+				let start = Instant::now();
+				let mut runs = 0;
+				while start.elapsed() < Duration::from_millis(self.bench_time) {
+					runs += 10;
+					for _ in 0..10 {
+						let (time, p1, p2) = day_to_bench(day, file.clone(), self.debug)?;
+						(a1, a2) = black_box((p1, p2));
+						day_time += time;
+					}
+				}
+				runs
+			};
+
+			let avg_time = day_time / runs as _;
+
+			print!(
+				"d{day:02}: ran {runs:>7} times over {:>10} for avg of {:>10}",
+				readable_time(day_time, 3),
+				readable_time(avg_time, 3),
+			);
+
+			if !self.hide_answers {
+				println!(" {:?}", [a1, a2],);
+			} else {
+				println!();
+			}
+
+			bench_times += avg_time;
+			total_time += day_time;
+		}
+
+		println!("All: run avg of {:>10}", readable_time(bench_times, 3),);
+
+		Ok(total_time)
+	}
 }
 
-fn print_times(day: u32, part: u32, ans: &str, time: Duration) {
+fn readable_time(duration: Duration, places: usize) -> String {
+	match duration.as_millis() {
+		0 => format!("{:.places$}μs", duration.as_nanos() as f32 / 1e3),
+		1..=999 => format!("{:.places$}ms", duration.as_nanos() as f32 / 1e6),
+		1_000.. => format!("{:.places$} s", duration.as_nanos() as f32 / 1e9),
+	}
+}
+
+fn print_times<D: Display>(day: u32, part: u32, ans: D, time: Duration) {
 	println!("d{day:02}p{part:02}: ({time:?}) {ans}");
 }
 
@@ -276,7 +396,7 @@ fn prompt(day: u32) -> PathBuf {
 	name
 }
 
-fn input_test(day: u32, test: u32) -> PathBuf {
+fn input_test(day: u32, test: u8) -> PathBuf {
 	let mut name = input_base_name(day);
 	name.push(format!("input{test:02}.txt"));
 	name

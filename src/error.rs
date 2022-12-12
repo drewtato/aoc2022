@@ -58,4 +58,6 @@ pub enum AocError {
 	EmptyArgument,
 	#[error("Part was empty in {arg}")]
 	EmptyPart { arg: String },
+	#[error("Too many test cases were generated from the prompt")]
+	TooManyTestCases,
 }

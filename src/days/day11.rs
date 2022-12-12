@@ -80,19 +80,34 @@ impl Solver for Solution {
 			} = &mut monkeys[current_monkey % len];
 
 			*inspected_count += items.len();
-			for item in std::mem::take(items).into_iter() {
-				let op1 = item;
-				let op2 = match operation.1 {
-					Operand::Number(n) => n,
-					Operand::Old => item,
-				};
-				let acc = match operation.0 {
-					Operator::Multiply => op1 * op2,
-					Operator::Add => op1 + op2,
-				} / 3;
 
-				let dest = if acc % test == 0 { if_true } else { if_false };
-				monkeys[dest].items.push(acc);
+			match operation.0 {
+				Operator::Multiply => {
+					for item in std::mem::take(items).into_iter() {
+						let op1 = item;
+						let op2 = match operation.1 {
+							Operand::Number(n) => n,
+							Operand::Old => item,
+						};
+						let acc = (op1 * op2) / 3;
+
+						let dest = if acc % test == 0 { if_true } else { if_false };
+						monkeys[dest].items.push(acc);
+					}
+				}
+				Operator::Add => {
+					for item in std::mem::take(items).into_iter() {
+						let op1 = item;
+						let op2 = match operation.1 {
+							Operand::Number(n) => n,
+							Operand::Old => item,
+						};
+						let acc = (op1 + op2) / 3;
+
+						let dest = if acc % test == 0 { if_true } else { if_false };
+						monkeys[dest].items.push(acc);
+					}
+				}
 			}
 
 			current_monkey += 1;
@@ -135,18 +150,31 @@ impl Solver for Solution {
 
 			*inspected_count += items.len();
 			let mut temp_items = std::mem::take(items);
-			for item in temp_items.drain(..) {
-				let op2 = match operation.1 {
-					Operand::Number(n) => n,
-					Operand::Old => item,
-				};
-				let acc = match operation.0 {
-					Operator::Multiply => item * op2,
-					Operator::Add => item + op2,
-				} % modulo;
+			match operation.0 {
+				Operator::Multiply => {
+					for item in temp_items.drain(..) {
+						let op2 = match operation.1 {
+							Operand::Number(n) => n,
+							Operand::Old => item,
+						};
+						let acc = (item * op2) % modulo;
 
-				let dest = if acc % test == 0 { if_true } else { if_false };
-				monkeys[dest].items.push(acc);
+						let dest = if acc % test == 0 { if_true } else { if_false };
+						monkeys[dest].items.push(acc);
+					}
+				}
+				Operator::Add => {
+					for item in temp_items.drain(..) {
+						let op2 = match operation.1 {
+							Operand::Number(n) => n,
+							Operand::Old => item,
+						};
+						let acc = (item + op2) % modulo;
+
+						let dest = if acc % test == 0 { if_true } else { if_false };
+						monkeys[dest].items.push(acc);
+					}
+				}
 			}
 
 			monkeys[current_monkey % len].items = temp_items;

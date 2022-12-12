@@ -64,10 +64,6 @@ impl Solver for Solution {
 			}
 
 			let current_height = file[width * y + x];
-			if p2_cost.is_none() && current_height == b'a' {
-				p2_cost = Some(cost);
-			}
-
 			for [dy, dx] in [[-1, 0], [1, 0], [0, 1], [0, -1]] {
 				let Ok(ny) = (y as isize + dy).try_into() else { continue; };
 				let Ok(nx) = (x as isize + dx).try_into() else { continue; };
@@ -75,6 +71,10 @@ impl Solver for Solution {
 				if current_height <= neighbor_height + 1 {
 					leads.push_back((cost + 1, [ny, nx]));
 				}
+			}
+
+			if p2_cost.is_none() && current_height == b'a' {
+				p2_cost = Some(cost);
 			}
 
 			if [y, x] == start {

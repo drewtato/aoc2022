@@ -1,12 +1,13 @@
 # Advent of Code 2022 solutions in Rust
 
-These are my Advent of Code solutions written in rust. Below will be my global leaderboard times.
+These are my Advent of Code solutions written in rust. Below are my global leaderboard times.
 
 ## Leaderboard
 
-```sql
+```ruby
       --------Part 1--------   --------Part 2--------
 Day       Time   Rank  Score       Time   Rank  Score
+ 12   00:20:34   1070      0   00:22:48    910      0
  11   01:12:40   6977      0   01:18:13   3784      0
  10   00:18:31   3566      0   00:31:33   2455      0
   9   00:30:45   4157      0   00:40:22   2394      0

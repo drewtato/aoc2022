@@ -208,7 +208,10 @@ impl Settings {
 			let time_until_release = time_until_input_is_released(day);
 			// If the puzzle is very far out
 			if time_until_release > ChDuration::hours(1) {
-				eprintln!("Puzzle doesn't release for {:?}", time_until_release);
+				eprintln!(
+					"Puzzle doesn't release for {:?}",
+					time_until_release.to_std().unwrap()
+				);
 				return Err(AocError::HasNotReleasedYet {
 					day,
 					duration: time_until_release,
@@ -219,8 +222,9 @@ impl Settings {
 			if time_until_release > ChDuration::seconds(-5) {
 				let delay = time_until_release + ChDuration::seconds(5);
 				eprintln!(
-					"Puzzle releases in {:?}, waiting {:?}",
-					time_until_release, delay
+					"Puzzle releases in {}, waiting {}",
+					readable_time(time_until_release.to_std().unwrap_or_default(), 0),
+					readable_time(delay.to_std().unwrap(), 0),
 				);
 				std::thread::sleep(delay.to_std().unwrap());
 			}
@@ -382,7 +386,8 @@ fn readable_time(duration: Duration, places: usize) -> String {
 	match duration.as_millis() {
 		0 => format!("{:.places$}μs", duration.as_nanos() as f32 / 1e3),
 		1..=999 => format!("{:.places$}ms", duration.as_nanos() as f32 / 1e6),
-		1_000.. => format!("{:.places$} s", duration.as_nanos() as f32 / 1e9),
+		1_000..=119_999 => format!("{:.places$}s", duration.as_nanos() as f32 / 1e9),
+		120_000.. => format!("{:.places$} minutes", duration.as_nanos() as f32 / 1e12),
 	}
 }
 

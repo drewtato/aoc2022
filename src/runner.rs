@@ -472,7 +472,6 @@ impl Settings {
 		Ok(total_time)
 	}
 
-	#[allow(unused_variables)]
 	fn validate(&mut self, day_parts: &[(u32, Vec<u32>)]) -> Res<Duration> {
 		let mut times = Duration::ZERO;
 		let mut incorrect = 0;
@@ -765,7 +764,6 @@ fn day_to_solver(day: u32, file: Vec<u8>, dbg: u8) -> Res<(Duration, Box<dyn Sol
 	})
 }
 
-#[allow(dead_code)]
 fn day_to_bench(day: u32, file: Vec<u8>, dbg: u8) -> Res<(Duration, String, String)> {
 	use crate::days::*;
 	#[allow(clippy::zero_prefixed_literal)]

@@ -1,7 +1,7 @@
 use crate::helpers::*;
 
-type A1 = impl std::fmt::Display + std::fmt::Debug + Clone;
-type A2 = impl std::fmt::Display + std::fmt::Debug + Clone;
+type A1 = usize;
+type A2 = usize;
 
 #[derive(Debug)]
 pub struct Solution {
@@ -20,7 +20,7 @@ impl Solver for Solution {
 
 		let div_two: Packet = b"[[6]]".parse().unwrap();
 
-		let mut input = file
+		let input = file
 			.trim_ascii()
 			.lines()
 			.filter(|l| !l.is_empty())
@@ -30,18 +30,20 @@ impl Solver for Solution {
 			.flat_map(|(i, [l1, l2])| {
 				if l1 < l2 {
 					count += i + 1;
-					[l1, l2]
-				} else {
-					[l2, l1]
 				}
-			})
-			.chain([div_one.clone(), div_two.clone()])
-			.collect_vec();
+				[l1, l2]
+			});
 
-		input.sort_unstable();
-
-		let one_pos = input.iter().position(|p| div_one.eq(p)).unwrap() + 1;
-		let two_pos = input.iter().position(|p| div_two.eq(p)).unwrap() + 1;
+		let mut one_pos = 1;
+		let mut two_pos = 2;
+		for packet in input {
+			if packet < div_two {
+				two_pos += 1;
+				if packet < div_one {
+					one_pos += 1;
+				}
+			}
+		}
 
 		Self {
 			p1: count,
@@ -50,11 +52,11 @@ impl Solver for Solution {
 	}
 
 	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
-		self.p1.clone()
+		self.p1
 	}
 
 	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
-		self.p2.clone()
+		self.p2
 	}
 
 	fn run_any<W: std::fmt::Write>(
@@ -70,10 +72,25 @@ impl Solver for Solution {
 	}
 }
 
+#[allow(unused_imports)]
 use packet::Packet;
 mod packet {
 	use super::*;
 	use std::fmt::Debug;
+
+	// #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	// pub enum ThreeOrder {
+	// 	ABC,
+	// 	ACB,
+	// 	BAC,
+	// 	BCA,
+	// 	CAB,
+	// 	CBA,
+	// }
+
+	// pub fn order_three(a: &[u8], b: &[u8], c: &[u8]) -> ThreeOrder {
+	// 	todo!()
+	// }
 
 	#[derive(Clone, PartialEq, Eq, Hash)]
 	pub enum Packet {

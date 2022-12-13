@@ -1,12 +1,14 @@
 use chrono::{Duration as ChDuration, FixedOffset, NaiveDate, Utc};
 use clap::{ArgAction, Parser, ValueEnum};
+use itertools::Itertools;
 use regex::bytes::Regex;
 use reqwest::blocking::Client;
 
+use std::borrow::Cow;
 use std::fmt::Display;
 use std::fs::{create_dir_all, File};
 use std::hint::black_box;
-use std::io::{BufWriter, Write};
+use std::io::BufWriter;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -52,6 +54,10 @@ pub struct Settings {
 	/// Hide answers in output.
 	#[arg(short = 'a', long)]
 	pub hide_answers: bool,
+
+	/// Exit on incorrect answers in validation mode.
+	#[arg(short, long)]
+	pub exit_on_incorrect: bool,
 
 	// /// Runs days in parallel.
 	// #[arg(long, short)]
@@ -115,18 +121,18 @@ impl Settings {
 		debug_println!(self.runner_debug, 2, "{:?}", self);
 		debug_println!(self.runner_debug, 1, "Starting runner");
 
-		let day_parts = self
-			.days
-			.iter()
-			.map(|word| parse_day(word))
-			.collect::<Res<Vec<_>>>()?;
-
-		match self.mode {
-			Mode::Run | Mode::R => solver_time += self.run_days(&day_parts)?,
-			Mode::Bench | Mode::B => solver_time += self.benchmark(&day_parts)?,
-			Mode::Save | Mode::S => todo!(),
-			Mode::Validate | Mode::V => todo!(),
+		let mut day_parts = Vec::new();
+		// Can't use collect because I need to flatten the Vec inside the Result
+		for item in self.days.iter().map(|word| parse_day(word)) {
+			day_parts.extend_from_slice(&item?);
 		}
+
+		solver_time += match self.mode {
+			Mode::Run | Mode::R => self.run_days(&day_parts),
+			Mode::Bench | Mode::B => self.benchmark(&day_parts),
+			Mode::Save | Mode::S => self.save(&day_parts),
+			Mode::Validate | Mode::V => self.validate(&day_parts),
+		}?;
 
 		let runner_time = runner_time.elapsed();
 		debug_println!(
@@ -203,7 +209,7 @@ impl Settings {
 	}
 
 	fn get_input(&mut self, day: u32) -> Res<Vec<u8>> {
-		let input_main = input_main(day);
+		let input_main = input_file_name(day, 0);
 		if !input_main.exists() {
 			let time_until_release = time_until_input_is_released(day);
 			// If the puzzle is very far out
@@ -235,7 +241,7 @@ impl Settings {
 		let input = if self.test == 0 {
 			std::fs::read(input_main)
 		} else {
-			std::fs::read(input_test(day, self.test))
+			std::fs::read(input_file_name(day, self.test))
 		}?;
 
 		Ok(input)
@@ -269,7 +275,7 @@ impl Settings {
 
 		let path = input_base_name(day);
 		create_dir_all(path)?;
-		let input_path = input_main(day);
+		let input_path = input_file_name(day, 0);
 		std::fs::write(input_path, data)?;
 
 		// Get prompt and test cases
@@ -291,7 +297,7 @@ impl Settings {
 
 		// Save prompt
 		let prompt_path = prompt(day);
-		File::create(prompt_path)?.write_all(&text)?;
+		std::fs::write(prompt_path, &text)?;
 
 		// Save each code block as a test case
 		let regex = self
@@ -308,7 +314,7 @@ impl Settings {
 
 			let code = &code[1];
 
-			let test_path = input_test(day, i);
+			let test_path = input_file_name(day, i);
 			let file = File::create(test_path)?;
 			let mut file = BufWriter::new(file);
 
@@ -386,6 +392,187 @@ impl Settings {
 
 		Ok(total_time)
 	}
+
+	fn save(&mut self, day_parts: &[(u32, Vec<u32>)]) -> Res<Duration> {
+		let mut time = Duration::ZERO;
+		for &(day, ref parts) in day_parts {
+			time += self.save_day(day, parts)?;
+		}
+		Ok(time)
+	}
+
+	fn save_day(&mut self, day: u32, parts: &[u32]) -> Res<Duration> {
+		let file = self.get_input(day)?;
+
+		let ans_file_name = answer_file_name(day, self.test);
+		let answers = if ans_file_name.exists() {
+			std::fs::read_to_string(&ans_file_name)?
+		} else {
+			String::new()
+		};
+		let mut answer_vec = answers.lines().map(Cow::Borrowed).collect_vec();
+
+		let (mut total_time, mut solver) = day_to_solver(day, file, self.debug)?;
+		let mut buf = String::new();
+
+		let parts = if parts.is_empty() {
+			vec![1, 2]
+		} else {
+			parts.to_vec()
+		};
+
+		for part in parts {
+			let time = match part {
+				1 => solver.part_one(self.debug, &mut buf),
+				2 => solver.part_two(self.debug, &mut buf),
+				p => solver.run_any(p, self.debug, &mut buf)?,
+			};
+			total_time += time;
+
+			let part = part as usize - 1;
+			if part >= answer_vec.len() {
+				answer_vec.resize(part + 1, String::new().into());
+			}
+			let saved = answer_vec[part].to_mut();
+
+			print!("d{day:02}p{:02}: ", part + 1);
+
+			if !saved.is_empty() {
+				if buf.eq(saved) {
+					if self.test > 0 {
+						println!("Test {:02} answer is still {:?}", self.test, buf);
+					} else {
+						println!("Answer is still {:?}", buf);
+					}
+				} else {
+					if self.test > 0 {
+						print!("Replacing test {:02} answer", self.test);
+					} else {
+						print!("Replacing main answer");
+					}
+					println!(" {:?} with {:?}", saved, buf);
+				}
+				saved.clear();
+			} else {
+				print!("Saving ");
+				if self.test > 0 {
+					print!("test {:02} answer", self.test);
+				} else {
+					print!("main answer");
+				}
+				println!(" {:?}", buf);
+			}
+
+			*saved += &buf;
+			buf.clear();
+		}
+
+		std::fs::write(ans_file_name, answer_vec.join("\n") + "\n")?;
+
+		Ok(total_time)
+	}
+
+	#[allow(unused_variables)]
+	fn validate(&mut self, day_parts: &[(u32, Vec<u32>)]) -> Res<Duration> {
+		let mut times = Duration::ZERO;
+		let mut incorrect = 0;
+
+		for &(day, ref parts) in day_parts {
+			let (t, i) = self.validate_day(day, parts)?;
+			times += t;
+			incorrect += i;
+		}
+
+		if incorrect == 0 {
+			println!("All answers were correct!");
+		} else {
+			println!("{} answers were incorrect.", incorrect);
+		}
+
+		Ok(times)
+	}
+
+	fn validate_day(&mut self, day: u32, parts: &[u32]) -> Res<(Duration, u32)> {
+		let file = self.get_input(day)?;
+
+		let ans_file_name = answer_file_name(day, self.test);
+		let answers = if ans_file_name.exists() {
+			std::fs::read_to_string(&ans_file_name)?
+		} else {
+			debug_println!(
+				self.runner_debug,
+				1,
+				"Answer file {:?} missing, saving current answers",
+				ans_file_name
+			);
+			let t = self.save_day(day, parts)?;
+			return Ok((t, 0));
+		};
+		let mut answer_vec = answers.lines().map(Cow::Borrowed).collect_vec();
+
+		let (mut total_time, mut solver) = day_to_solver(day, file, self.debug)?;
+		let mut buf = String::new();
+		let mut incorrect = 0;
+
+		let parts = if parts.is_empty() {
+			vec![1, 2]
+		} else {
+			parts.to_vec()
+		};
+
+		for part in parts {
+			let time = match part {
+				1 => solver.part_one(self.debug, &mut buf),
+				2 => solver.part_two(self.debug, &mut buf),
+				p => solver.run_any(p, self.debug, &mut buf)?,
+			};
+			total_time += time;
+
+			let part = part as usize - 1;
+			if part >= answer_vec.len() {
+				answer_vec.resize(part + 1, String::new().into());
+			}
+			let saved = answer_vec[part].to_mut();
+
+			print!("d{day:02}p{:02}: ", part + 1);
+
+			if !saved.is_empty() {
+				if buf.eq(saved) {
+					if self.test > 0 {
+						println!("Test {:02} answer is correct: {:?}", self.test, buf);
+					} else {
+						println!("Answer is correct: {:?}", buf);
+					}
+				} else {
+					if self.test > 0 {
+						print!("Test {:02} answer", self.test);
+					} else {
+						print!("main answer");
+					}
+					println!(" {:?} did not match saved answer {:?}", buf, saved);
+					if self.exit_on_incorrect {
+						return Err(AocError::IncorrectAnswer);
+					}
+					incorrect += 1;
+				}
+			} else {
+				print!("Saving ");
+				if self.test > 0 {
+					print!("test {:02} answer", self.test);
+				} else {
+					print!("main answer");
+				}
+				println!(" {:?}", buf);
+				saved.clear();
+				*saved += &buf;
+			}
+			buf.clear();
+		}
+
+		std::fs::write(ans_file_name, answer_vec.join("\n") + "\n")?;
+
+		Ok((total_time, incorrect))
+	}
 }
 
 fn readable_time(duration: Duration, places: usize) -> String {
@@ -407,15 +594,23 @@ fn prompt(day: u32) -> PathBuf {
 	name
 }
 
-fn input_test(day: u32, test: u8) -> PathBuf {
+fn answer_file_name(day: u32, test: u8) -> PathBuf {
 	let mut name = input_base_name(day);
-	name.push(format!("input{test:02}.txt"));
+	if test > 0 {
+		name.push(format!("answer{test:02}.txt"));
+	} else {
+		name.push("answer.txt");
+	}
 	name
 }
 
-fn input_main(day: u32) -> PathBuf {
+fn input_file_name(day: u32, test: u8) -> PathBuf {
 	let mut name = input_base_name(day);
-	name.push("input.txt");
+	if test > 0 {
+		name.push(format!("input{test:02}.txt"));
+	} else {
+		name.push("input.txt");
+	}
 	name
 }
 
@@ -423,7 +618,7 @@ fn input_base_name(day: u32) -> PathBuf {
 	PathBuf::from(format!("./inputs/day{day:02}"))
 }
 
-fn parse_day(word: &str) -> Res<(u32, Vec<u32>)> {
+fn parse_day(word: &str) -> Res<Vec<(u32, Vec<u32>)>> {
 	let mut nums = word.split('.');
 	let day = if let Some(n) = nums.next() {
 		if n.is_empty() {
@@ -454,7 +649,12 @@ fn parse_day(word: &str) -> Res<(u32, Vec<u32>)> {
 			}
 		})
 		.collect::<Res<Vec<u32>>>()?;
-	Ok((day, rest))
+
+	Ok(if day == 0 {
+		(1..=25).map(|n| (n, rest.clone())).collect()
+	} else {
+		vec![(day, rest)]
+	})
 }
 
 fn day_to_solver(day: u32, file: Vec<u8>, dbg: u8) -> Res<(Duration, Box<dyn SolverSafe>)> {

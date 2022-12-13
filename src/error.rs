@@ -60,4 +60,6 @@ pub enum AocError {
 	EmptyPart { arg: String },
 	#[error("Too many test cases were generated from the prompt")]
 	TooManyTestCases,
+	#[error("Answers did not match, exiting run")]
+	IncorrectAnswer,
 }

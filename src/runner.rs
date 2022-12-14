@@ -327,6 +327,10 @@ impl Settings {
 	}
 
 	fn benchmark(&mut self, day_parts: &[(u32, Vec<u32>)]) -> Res<Duration> {
+		if cfg!(debug_assertions) {
+			eprintln!("WARNING: running benchmark in debug mode");
+		}
+
 		let mut bench_times = Duration::ZERO;
 		let mut total_time = Duration::ZERO;
 

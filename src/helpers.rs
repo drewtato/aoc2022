@@ -6,7 +6,7 @@ mod parse_bytes;
 pub use std::cmp::Reverse;
 use std::io::stdin;
 pub use std::num::Wrapping;
-use std::ops::AddAssign;
+use std::ops::{Add, AddAssign, Div, Mul};
 use std::str::FromStr;
 
 pub use ahash::{AHashMap as HashMap, AHashSet as HashSet, HashMapExt, HashSetExt};
@@ -22,6 +22,22 @@ pub use multi_parse::*;
 
 mod input_data;
 pub use input_data::*;
+
+/// Computes the triangular number.
+///
+/// # Example
+/// ```ignore
+/// # use aoc2022::helpers::triangular_number;
+/// for (n, ans) in [0, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55].into_iter().enumerate() {
+///     assert_eq!(triangular_number(n), ans);
+/// }
+/// ```
+pub fn triangular_number<N>(n: N) -> N
+where
+	N: Add<Output = N> + Mul<Output = N> + Div<Output = N> + From<u8> + Copy,
+{
+	n * (n + 1u8.into()) / 2u8.into()
+}
 
 pub fn read_value<T>() -> Result<T, T::Err>
 where

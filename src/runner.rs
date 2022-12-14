@@ -255,9 +255,8 @@ impl Settings {
 
 		// Get main input
 		let url = format!("https://adventofcode.com/{YEAR}/day/{day}/input");
-		if self.runner_debug > 0 {
-			eprintln!("Fetching {url}");
-		}
+		eprintln!("Fetching {url}");
+
 		let client = self
 			.client
 			.get_or_insert_with(|| Client::builder().user_agent(USER_AGENT).build().unwrap());

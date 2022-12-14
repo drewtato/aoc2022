@@ -82,11 +82,7 @@ impl Solver for Solution {
 	}
 }
 
-#[allow(unused_imports)]
-use packet::Packet;
-
-use self::packet::{order_four, FourOrder};
-#[allow(unused)]
+use packet::*;
 mod packet {
 	use atoi::FromRadix10;
 

@@ -16,7 +16,8 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>, _: u8) -> Self {
-		let mut field: Vec<BTreeSet<[usize; 2]>> = Vec::with_capacity(64);
+		let mut field: Vec<BTreeSet<[usize; 2]>> = Vec::with_capacity(128);
+		let mut set_field: HashSet<[usize; 2]> = HashSet::with_capacity(1024);
 
 		let input = file.trim_ascii().lines().flat_map(|mut line| {
 			std::iter::from_fn(move || {
@@ -44,8 +45,10 @@ impl Solver for Solution {
 				if y2 >= field.len() {
 					field.resize_with(y2 + 1, Default::default);
 				}
-				for row in &mut field[y1..=y2] {
-					row.insert([x1, x1 + 1]);
+				for (y, row) in field.iter_mut().enumerate().skip(y1).take(y2 - y1 + 1) {
+					if set_field.insert([y, x1]) {
+						row.insert([x1, x1 + 1]);
+					}
 				}
 			} else {
 				let mut xs = [x1, x2];
@@ -55,14 +58,55 @@ impl Solver for Solution {
 				if y2 >= field.len() {
 					field.resize_with(y2 + 1, Default::default);
 				}
+
+				field[y2].remove(&[x1, x1 + 1]);
+				field[y2].remove(&[x2, x2 + 1]);
 				field[y2].insert([x1, x2 + 1]);
+
+				for x in x1..=x2 {
+					set_field.insert([y2, x]);
+				}
 			}
 		}
 
+		let mut p1 = 0;
+		let mut pos_stack = Vec::with_capacity(512);
+		pos_stack.push([0, 500]);
+		let bottom = field.len() + 1;
+		let mut y = 0;
+		let mut x = 500;
+
+		loop {
+			y += 1;
+			if y == bottom {
+				break;
+			}
+
+			if !set_field.contains(&[y, x]) {
+			} else if !set_field.contains(&[y, x - 1]) {
+				x -= 1;
+			} else if !set_field.contains(&[y, x + 1]) {
+				x += 1;
+			} else {
+				y -= 1;
+				set_field.insert([y, x]);
+				// if field[y].contains(&(x - 1)) {
+
+				// }
+
+				p1 += 1;
+				pos_stack.pop();
+				[y, x] = *pos_stack.last().unwrap();
+				continue;
+			}
+			pos_stack.push([y, x]);
+		}
+
+		// print_set_field(&set_field, 0, field.len(), 430, 530);
+
 		let mut sand_ranges = vec![500..501];
 		let mut current_sand_ranges = Vec::new();
-		let mut sand_count = 1;
-		// let mut sand_touching_bottom = Vec::new();
+		let mut p2 = 1;
 
 		for row in field.drain(1..).chain([Default::default()]) {
 			std::mem::swap(&mut sand_ranges, &mut current_sand_ranges);
@@ -107,16 +151,13 @@ impl Solver for Solution {
 			}
 
 			for range in &sand_ranges {
-				sand_count += range.len();
+				p2 += range.len();
 			}
 			// print_sand_row(&sand_ranges, &row, 300, 700);
 			// read_value::<String>().unwrap();
 		}
 
-		Self {
-			p1: 0,
-			p2: sand_count,
-		}
+		Self { p1, p2 }
 	}
 
 	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
@@ -137,6 +178,26 @@ impl Solver for Solution {
 		match part {
 			_ => Err(AocError::PartNotFound),
 		}
+	}
+}
+
+#[allow(dead_code)]
+fn print_set_field(
+	set_field: &HashSet<[usize; 2]>,
+	min_y: usize,
+	max_y: usize,
+	min_x: usize,
+	max_x: usize,
+) {
+	for y in min_y..=max_y {
+		for x in min_x..=max_x {
+			if set_field.contains(&[y, x]) {
+				print!("#");
+			} else {
+				print!(" ");
+			}
+		}
+		println!();
 	}
 }
 

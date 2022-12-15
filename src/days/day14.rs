@@ -1,7 +1,9 @@
+use std::ops::Range;
+
 use crate::helpers::*;
 
-type A1 = u32;
-type A2 = u32;
+type A1 = usize;
+type A2 = usize;
 
 #[derive(Debug)]
 pub struct Solution {
@@ -9,23 +11,21 @@ pub struct Solution {
 	p2: A2,
 }
 
-const WIDTH: usize = 200;
-
 impl Solver for Solution {
 	type AnswerOne = A1;
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>, _: u8) -> Self {
-		let mut field = vec![[0; WIDTH]; WIDTH];
+		let mut field: Vec<BTreeSet<[usize; 2]>> = Vec::with_capacity(64);
 
 		let input = file.trim_ascii().lines().flat_map(|mut line| {
 			std::iter::from_fn(move || {
 				if line.is_empty() {
 					None
 				} else {
-					let n = parse_consume_signed(&mut line);
+					let n: usize = parse_consume_signed(&mut line);
 					line = &line[1..];
-					let m = parse_consume_signed(&mut line);
+					let m: usize = parse_consume_signed(&mut line);
 					if !line.is_empty() {
 						line = &line[4..];
 					}
@@ -35,121 +35,88 @@ impl Solver for Solution {
 			.tuple_windows()
 		});
 
-		let mut lowest = 0;
-		let mut leftmost = WIDTH;
-		let mut rightmost = 0;
 		for ([x1, y1], [x2, y2]) in input {
-			let mut xs = [adjust(x1), adjust(x2)];
-			let mut ys = [y1, y2];
-			xs.sort();
-			ys.sort();
-
-			let [x1, x2] = xs;
-			let [y1, y2] = ys;
-			lowest = lowest.max(y2);
-			leftmost = leftmost.min(x1);
-			rightmost = rightmost.max(x2);
-
 			if x1 == x2 {
-				for n in &mut field[y1..=y2] {
-					n[x1] = 1;
+				let mut ys = [y1, y2];
+				// vertical line
+				ys.sort_unstable();
+				let [y1, y2] = ys;
+				if y2 >= field.len() {
+					field.resize_with(y2 + 1, Default::default);
 				}
-			} else if y1 == y2 {
-				for n in &mut field[y1][x1..=x2] {
-					*n = 1;
+				for row in &mut field[y1..=y2] {
+					row.insert([x1, x1 + 1]);
 				}
 			} else {
-				panic!("Diagonal line oh no!");
+				let mut xs = [x1, x2];
+				// horizontal line
+				xs.sort_unstable();
+				let [x1, x2] = xs;
+				if y2 >= field.len() {
+					field.resize_with(y2 + 1, Default::default);
+				}
+				field[y2].insert([x1, x2 + 1]);
 			}
 		}
 
-		leftmost -= 1;
-		rightmost += 1;
-		let sand_start = [adjust(500), 0];
-		let mut sand_count = 0;
-		let bottom_edge = lowest + 1;
+		let mut sand_ranges = vec![500..501];
+		let mut current_sand_ranges = Vec::new();
+		let mut sand_count = 1;
+		// let mut sand_touching_bottom = Vec::new();
 
-		let p1 = 'l: loop {
-			let mut current = sand_start;
-			loop {
-				if current[1] == bottom_edge {
-					break 'l sand_count;
-				}
-				if 0 == field[current[1] + 1][current[0]] {
-					current[1] += 1;
-				} else if 0 == field[current[1] + 1][current[0] - 1] {
-					current[0] -= 1;
-					current[1] += 1;
-				} else if 0 == field[current[1] + 1][current[0] + 1] {
-					current[0] += 1;
-					current[1] += 1;
-				} else {
-					// Sand has stopped
-					break;
-				}
-			}
-			sand_count += 1;
-			// println!("Sand got to {:?}", current);
-			// read_value::<String>().unwrap();
-			field[current[1]][current[0]] = 2;
-		};
+		for row in field.drain(1..).chain([Default::default()]) {
+			std::mem::swap(&mut sand_ranges, &mut current_sand_ranges);
 
-		loop {
-			let mut current = sand_start;
-			loop {
-				if current[1] == bottom_edge {
-					break;
-				}
+			let mut row_iter = row.iter();
+			let mut row_range = row_iter.next();
 
-				if 0 == field[current[1] + 1][current[0]] {
-					current[1] += 1;
-				} else if 0 == field[current[1] + 1][current[0] - 1] {
-					if current[0] - 1 < leftmost {
-						if 0 == field[current[1] + 1][current[0] + 1] {
-							current[0] += 1;
-							current[1] += 1;
-						} else {
+			for mut sand in current_sand_ranges.drain(..) {
+				sand.start -= 1;
+				sand.end += 1;
+
+				while let Some(r) = row_range {
+					let r = r[0]..r[1];
+					// println!("{sand:?} {r:?}");
+					if r.end > sand.start {
+						if r.start >= sand.end {
 							break;
 						}
-					} else {
-						current[0] -= 1;
-						current[1] += 1;
+						if r.contains(&sand.start) {
+							sand.start = r.end;
+						}
+						if r.contains(&(sand.end - 1)) {
+							sand.end = r.start;
+							break;
+						}
+						if sand.start < r.start && r.end < sand.end {
+							let split = sand.start..r.start;
+							sand.start = r.end;
+							// println!("split into {split:?} and {sand:?}");
+							extend_or_push(&mut sand_ranges, split);
+						}
 					}
-				} else if 0 == field[current[1] + 1][current[0] + 1] {
-					if current[0] + 1 > rightmost {
-						break;
-					}
-					current[0] += 1;
-					current[1] += 1;
+					row_range = row_iter.next();
+				}
+
+				if !sand.is_empty() {
+					// println!("Adding {sand:?}");
+					extend_or_push(&mut sand_ranges, sand);
 				} else {
-					// Sand has stopped
-					break;
+					// println!("Empty {sand:?}");
 				}
 			}
 
-			field[current[1]][current[0]] = 2;
-			sand_count += 1;
-			if current == sand_start {
-				break;
+			for range in &sand_ranges {
+				sand_count += range.len();
 			}
-			// println!("Sand got to {:?}", current);
+			// print_sand_row(&sand_ranges, &row, 300, 700);
 			// read_value::<String>().unwrap();
-
-			// if sand_count % 1000 == 0 {
-			// 	println!("\n\n\n{sand_count}");
-			// 	print_field(&field, bottom_edge, leftmost, rightmost);
-			// }
 		}
 
-		// print_field(&field, bottom_edge, leftmost, rightmost);
-		// dbg_small!(leftmost, rightmost, bottom_edge);
-
-		let right_len = bottom_edge - (rightmost - adjust(500));
-		let left_len = bottom_edge - (adjust(500) - leftmost);
-		sand_count += triangular_number(right_len as u32);
-		sand_count += triangular_number(left_len as u32);
-
-		Self { p1, p2: sand_count }
+		Self {
+			p1: 0,
+			p2: sand_count,
+		}
 	}
 
 	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
@@ -173,22 +140,48 @@ impl Solver for Solution {
 	}
 }
 
-#[allow(dead_code)]
-fn print_field(field: &[[u8; 1000]], bottom: usize, leftmost: usize, rightmost: usize) {
-	println!();
-	for line in &field[..bottom + 1] {
-		for &spot in &line[(leftmost - 2)..=(rightmost + 2)] {
-			match spot {
-				0 => print!(" "),
-				1 => print!("#"),
-				2 => print!("."),
-				_ => panic!(),
-			}
-		}
-		println!();
+fn extend_or_push(sand_ranges: &mut Vec<Range<usize>>, sand: Range<usize>) {
+	match sand_ranges.last_mut() {
+		Some(prev) if prev.end >= sand.start => prev.end = sand.end,
+		_ => sand_ranges.push(sand),
 	}
 }
 
-fn adjust(n: usize) -> usize {
-	n - (1000 - WIDTH) / 2
+#[allow(dead_code)]
+fn print_sand_row(sand: &[Range<usize>], rock: &BTreeSet<[usize; 2]>, min: usize, max: usize) {
+	let mut all = Vec::new();
+	for s in sand.iter().cloned().flatten() {
+		if !(min..max).contains(&s) {
+			continue;
+		}
+		let s = s - min;
+		if s >= all.len() {
+			all.resize(s + 1, b' ');
+		}
+		all[s] = match all[s] {
+			b' ' => b'.',
+			b'.' => b'a',
+			a @ b'a'..=b'y' => a + 1,
+			b'z' => b'z',
+			a => panic!("Unknown character {a}"),
+		}
+	}
+	for s in rock.iter().flat_map(|&[a, b]| a..b) {
+		if !(min..max).contains(&s) {
+			continue;
+		}
+		let s = s - min;
+		if s >= all.len() {
+			all.resize(s + 1, b' ');
+		}
+		all[s] = match all[s] {
+			b' ' => b'#',
+			b'.' => b'M',
+			b'#' => b'1',
+			a @ b'1'..=b'9' => a + 1,
+			b'0' => b'0',
+			a => panic!("Unknown character {a}"),
+		}
+	}
+	println!("{}", all.to_display_slice());
 }

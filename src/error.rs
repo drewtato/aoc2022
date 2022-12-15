@@ -62,4 +62,6 @@ pub enum AocError {
 	TooManyTestCases,
 	#[error("Answers did not match, exiting run")]
 	IncorrectAnswer,
+	#[error("{0} answers were incorrect.")]
+	MultipleIncorrect(u32),
 }

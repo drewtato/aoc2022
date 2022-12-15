@@ -487,11 +487,10 @@ impl Settings {
 
 		if incorrect == 0 {
 			println!("All answers were correct!");
+			Ok(times)
 		} else {
-			println!("{} answers were incorrect.", incorrect);
+			Err(AocError::MultipleIncorrect(incorrect))
 		}
-
-		Ok(times)
 	}
 
 	fn validate_day(&mut self, day: u32, parts: &[u32]) -> Res<(Duration, u32)> {

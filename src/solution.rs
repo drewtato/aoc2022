@@ -65,13 +65,13 @@ where
 {
 	fn part_one(&mut self, dbg: u8, writer: &mut String) -> Duration {
 		let (time, a1) = time_fn(|| self.part_one(dbg));
-		write!(writer, "{}", a1).unwrap();
+		write!(writer, "{a1}").unwrap();
 		time
 	}
 
 	fn part_two(&mut self, dbg: u8, writer: &mut String) -> Duration {
 		let (time, a2) = time_fn(|| self.part_two(dbg));
-		write!(writer, "{}", a2).unwrap();
+		write!(writer, "{a2}").unwrap();
 		time
 	}
 

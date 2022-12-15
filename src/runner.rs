@@ -204,7 +204,7 @@ impl Settings {
 			println!("d{day:02} total: {day_time:?}\n");
 			test_time += day_time;
 		}
-		println!("All: {:?}", test_time);
+		println!("All: {test_time:?}");
 		Ok(test_time)
 	}
 
@@ -382,7 +382,7 @@ impl Settings {
 			);
 
 			if !self.hide_answers {
-				println!(" {:?}", [a1, a2],);
+				println!(" {:?}", [a1, a2]);
 			} else {
 				println!();
 			}
@@ -391,7 +391,7 @@ impl Settings {
 			total_time += day_time;
 		}
 
-		println!("All: run avg of {:>22}", readable_time(bench_times, 3),);
+		println!("All: run avg of {:>22}", readable_time(bench_times, 3));
 
 		Ok(total_time)
 	}
@@ -445,7 +445,7 @@ impl Settings {
 					if self.test > 0 {
 						println!("Test {:02} answer is still {:?}", self.test, buf);
 					} else {
-						println!("Answer is still {:?}", buf);
+						println!("Answer is still {buf:?}");
 					}
 				} else {
 					if self.test > 0 {
@@ -453,7 +453,7 @@ impl Settings {
 					} else {
 						print!("Replacing main answer");
 					}
-					println!(" {:?} with {:?}", saved, buf);
+					println!(" {saved:?} with {buf:?}");
 				}
 				saved.clear();
 			} else {
@@ -463,7 +463,7 @@ impl Settings {
 				} else {
 					print!("main answer");
 				}
-				println!(" {:?}", buf);
+				println!(" {buf:?}");
 			}
 
 			*saved += &buf;
@@ -542,7 +542,7 @@ impl Settings {
 					if self.test > 0 {
 						println!("Test {:02} answer is correct: {:?}", self.test, buf);
 					} else {
-						println!("Answer is correct: {:?}", buf);
+						println!("Answer is correct: {buf:?}");
 					}
 				} else {
 					if self.test > 0 {
@@ -550,7 +550,7 @@ impl Settings {
 					} else {
 						print!("main answer");
 					}
-					println!(" {:?} did not match saved answer {:?}", buf, saved);
+					println!(" {buf:?} did not match saved answer {saved:?}");
 					if self.exit_on_incorrect {
 						return Err(AocError::IncorrectAnswer);
 					}
@@ -563,7 +563,7 @@ impl Settings {
 				} else {
 					print!("main answer");
 				}
-				println!(" {:?}", buf);
+				println!(" {buf:?}");
 				saved.clear();
 				*saved += &buf;
 			}

@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::helpers::*;
 
 type A1 = i32;
@@ -7,8 +5,9 @@ type A2 = i64;
 
 #[derive(Debug)]
 pub struct Solution {
-	p1: A1,
-	p2: A2,
+	sensors: Vec<(GridCircle, i32, i32)>,
+	search_space: i32,
+	target_row: i32,
 }
 
 const MULTIPLIER: i64 = 4000000;
@@ -27,7 +26,7 @@ impl Solver for Solution {
 			r"Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)",
 		)
 		.unwrap();
-		let input = file
+		let sensors = file
 			.trim_ascii()
 			.lines()
 			.map(|line| {
@@ -45,16 +44,23 @@ impl Solver for Solution {
 			})
 			.collect_vec();
 
-		// for list in input {
-		// 	println!("{:?}", list);
-		// }
+		Self {
+			sensors,
+			search_space,
+			target_row,
+		}
+	}
 
-		// for y in -2..23 {
-		// 	let target_row = y;
-		// 	print!("{target_row:3} ");
+	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
+		let &mut Self {
+			ref sensors,
+			target_row,
+			..
+		} = self;
+
 		let mut beacons = HashSet::new();
 
-		let mut ranges = input
+		let mut ranges = sensors
 			.iter()
 			.filter_map(|&(sensor, by, bx)| {
 				if by == target_row {
@@ -77,40 +83,29 @@ impl Solver for Solution {
 
 		let mut last = A1::MIN;
 		let mut count = 0;
-		// let mut places = HashSet::new();
+
 		for range in ranges {
 			let range = (range[0].max(last))..(range[1].max(last));
 			last = range.end;
 			count += range.len() as A1;
-			// for n in range {
-			// 	// if !places.insert(n) {
-			// 	// 	println!("Got something twice");
-			// 	// }
-			// 	places.insert(n);
-			// }
 		}
 
-		// 	for n in -4..27 {
-		// 		if places.contains(&n) {
-		// 			print!("#");
-		// 		} else {
-		// 			print!(".");
-		// 		}
-		// 	}
-		// 	println!(
-		// 		" {} {} {}",
-		// 		places.len() as A1 - beacons_in_target_row,
-		// 		count - beacons_in_target_row,
-		// 		beacons_in_target_row
-		// 	);
-		// }
+		count - beacons_in_target_row
+	}
+
+	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
+		let &mut Self {
+			ref sensors,
+			search_space,
+			..
+		} = self;
 
 		let mut y = 0;
 		let mut ranges = Vec::new();
 		let [y, x]: [A1; 2] = 'l: loop {
 			let target_row = y;
 
-			input
+			sensors
 				.iter()
 				.filter_map(|&(sensor, _, _)| {
 					let distance_to_target = sensor.y.abs_diff(target_row) as A1;
@@ -131,56 +126,28 @@ impl Solver for Solution {
 			let mut last = 0;
 
 			// let mut seen = HashSet::new();
-			// let mut ans = None;
 
-			// println!("{:?}", ranges);
-
-			for &[[start1, end1], [start2, _]] in ranges.array_windows() {
+			for &[[_start1, end1], [start2, _end2]] in ranges.array_windows() {
 				let end1 = end1.max(last);
 				last = end1;
 				if end1 == start2 - 1 && (0..=search_space).contains(&end1) {
-					println!("{:?}", [y, end1]);
-					// ans = Some([y, end1]);
 					break 'l [y, end1];
 				}
 				// for n in start1..end1 {
 				// 	seen.insert(n);
 				// }
 			}
+
 			ranges.clear();
 
-			// print!("{y:3} ");
-			// for n in -4..=26 {
-			// 	if seen.contains(&n) {
-			// 		print!("#");
-			// 	} else {
-			// 		print!(".");
-			// 	}
-			// }
-			// println!();
-
-			// if let Some(ans) = ans {
-			// 	break 'l ans;
-			// }
-
 			y += 1;
-			if y > search_space {
+
+			if cfg!(debug_assert) && y > search_space {
 				panic!("Didn't find beacon")
 			}
 		};
 
-		Self {
-			p1: count - beacons_in_target_row,
-			p2: y as i64 + x as i64 * MULTIPLIER,
-		}
-	}
-
-	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
-		self.p1
-	}
-
-	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
-		self.p2
+		y as i64 + x as i64 * MULTIPLIER
 	}
 	fn run_any<W: std::fmt::Write>(
 		&mut self,
@@ -206,6 +173,7 @@ fn distance(y1: A1, x1: A1, y2: A1, x2: A1) -> A1 {
 	(y1.abs_diff(y2) + x1.abs_diff(x2)) as _
 }
 
+#[allow(dead_code)]
 impl GridCircle {
 	fn distance(self, other: Self) -> A1 {
 		distance(self.y, self.x, other.y, other.x)
@@ -224,19 +192,27 @@ impl GridCircle {
 		} else if distance > total_radius {
 			0
 		} else {
+			// We want to work with squares on the 45 degree "dual" grid
+
+			// This finds the coordinate of self on the dual grid
 			let day = self.y - self.x;
 			let dax = self.y + self.x;
 
+			// Same for other
 			let dby = other.y - other.x;
 			let dbx = other.y + other.x;
 
+			// Get dual overlap's top-right corner
 			let low_y = (day - self.radius).max(dby - other.radius);
 			let low_x = (dax - self.radius).max(dbx - other.radius);
 
+			// Get dual overlap's bottom-left corner
 			let high_y = (day - self.radius).min(dby - other.radius);
 			let high_x = (dax - self.radius).min(dbx - other.radius);
 
-			(high_y - low_y) * (high_x - low_x)
+			// The area on the dual grid is the area of the overlap. The area we want is half that,
+			// rounded down.
+			(high_y - low_y) * (high_x - low_x) / 2
 		}
 	}
 }

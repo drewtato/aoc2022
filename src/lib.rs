@@ -7,6 +7,7 @@
 #![feature(iter_collect_into)]
 #![feature(get_many_mut)]
 #![feature(split_as_slice)]
+#![allow(clippy::uninlined_format_args)]
 
 pub const YEAR: u32 = 2022;
 pub type Res<T> = Result<T, AocError>;

@@ -56,7 +56,7 @@ impl Solver for Solution {
 		match part {
 			3 => {
 				let (time, p3) = time_fn(|| self.part_three());
-				write!(writer, "{:?}", p3)?;
+				write!(writer, "{p3:?}")?;
 				Ok(time)
 			}
 			_ => Err(AocError::PartNotFound),

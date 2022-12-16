@@ -22,27 +22,35 @@ impl Solver for Solution {
 			_ => (2_000_000, 4_000_000),
 		};
 
-		let r = Regex::new(
-			r"Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)",
-		)
-		.unwrap();
-		let sensors = file
-			.trim_ascii()
-			.lines()
-			.map(|line| {
-				let [x, y, c, d] = r
-					.captures(line)
-					.unwrap()
-					.iter()
-					.skip(1)
-					.map(|n| n.unwrap().as_bytes().parse().unwrap())
-					.array_chunks()
-					.next()
-					.unwrap();
-				let radius = distance(y, x, d, c);
-				(GridCircle { y, x, radius }, d, c)
-			})
-			.collect_vec();
+		let mut sensors = Vec::with_capacity(32);
+
+		file.trim_ascii_end().consume_lines(|mut line| {
+			let original_len = line.len();
+
+			line = &line[12..];
+			let x1 = parse_consume_signed(&mut line);
+			line = &line[4..];
+			let y1 = parse_consume_signed(&mut line);
+			line = &line[25..];
+			let x2 = parse_consume_signed(&mut line);
+			line = &line[4..];
+			let y2 = parse_consume_signed(&mut line);
+
+			let radius = distance(y1, x1, y2, x2);
+
+			sensors.push((
+				GridCircle {
+					y: y1,
+					x: x1,
+					radius,
+				},
+				y2,
+				x2,
+			));
+
+			let skip = original_len - line.len();
+			Err(skip + 1)
+		});
 
 		Self {
 			sensors,
@@ -94,61 +102,129 @@ impl Solver for Solution {
 	}
 
 	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
-		let &mut Self {
-			ref sensors,
-			search_space,
-			..
-		} = self;
+		let mut sensors = self.sensors.as_slice();
 
-		let mut y = 0;
-		let mut ranges = Vec::new();
-		let [y, x]: [A1; 2] = 'l: loop {
-			let target_row = y;
+		let mut diagonal_lines_nw_se: Vec<[[i32; 2]; 2]> = Vec::new();
+		let mut diagonal_lines_ne_sw = Vec::new();
 
-			sensors
-				.iter()
-				.filter_map(|&(sensor, _, _)| {
-					let distance_to_target = sensor.y.abs_diff(target_row) as A1;
-					let width_at_target = sensor.radius - distance_to_target;
-					let range = (sensor.x - width_at_target)..(sensor.x + width_at_target + 1);
-					if range.is_empty() {
-						None
-					} else {
-						Some([range.start, range.end])
+		let [y, x] = 'b: {
+			while let Some((a, _, _)) = sensors.take_first() {
+				for (b, _, _) in sensors {
+					if a.distance(*b) != a.radius + b.radius + 2 {
+						continue;
 					}
-				})
-				.collect_into(&mut ranges);
 
-			ranges.push([-1, 0]);
-			ranges.push([search_space, search_space + 1]);
-			ranges.sort_unstable();
+					let a_corners = [
+						[a.y, a.x + a.radius],
+						[a.y - a.radius, a.x],
+						[a.y, a.x - a.radius],
+						[a.y + a.radius, a.x],
+					];
 
-			let mut last = 0;
+					let b_corners = [
+						[b.y, b.x + b.radius],
+						[b.y - b.radius, b.x],
+						[b.y, b.x - b.radius],
+						[b.y + b.radius, b.x],
+					];
 
-			// let mut seen = HashSet::new();
+					let (mut line, ne_sw) = match (a.y < b.y, a.x < b.x) {
+						(true, true) => (
+							[
+								[a_corners[0][0] + 1, a_corners[0][1]],
+								[a_corners[3][0], a_corners[3][1] + 1],
+								[b_corners[1][0], b_corners[1][1] - 1],
+								[b_corners[2][0] - 1, b_corners[2][1]],
+							],
+							true,
+						),
+						(true, false) => (
+							[
+								[a_corners[2][0] + 1, a_corners[2][1]],
+								[a_corners[3][0], a_corners[3][1] - 1],
+								[b_corners[0][0] - 1, b_corners[0][1]],
+								[b_corners[1][0], b_corners[1][1] + 1],
+							],
+							false,
+						),
+						(false, true) => (
+							[
+								[a_corners[0][0] - 1, a_corners[0][1]],
+								[a_corners[1][0], a_corners[1][1] + 1],
+								[b_corners[2][0] + 1, b_corners[2][1]],
+								[b_corners[3][0], b_corners[3][1] - 1],
+							],
+							false,
+						),
+						(false, false) => (
+							[
+								[a_corners[1][0], a_corners[1][1] - 1],
+								[a_corners[2][0] - 1, a_corners[2][1]],
+								[b_corners[0][0] + 1, b_corners[0][1]],
+								[b_corners[3][0], b_corners[3][1] + 1],
+							],
+							true,
+						),
+					};
 
-			for &[[_start1, end1], [start2, _end2]] in ranges.array_windows() {
-				let end1 = end1.max(last);
-				last = end1;
-				if end1 == start2 - 1 && (0..=search_space).contains(&end1) {
-					break 'l [y, end1];
+					line.sort();
+
+					if ne_sw {
+						let [ne, sw] = [line[1], line[2]];
+
+						for &[nw, se] in &diagonal_lines_nw_se {
+							if let Some(ans) = self.check(nw, se, ne, sw) {
+								break 'b ans;
+							}
+						}
+
+						diagonal_lines_ne_sw.push([ne, sw]);
+					} else {
+						let [nw, se] = [line[1], line[2]];
+
+						for &[ne, sw] in &diagonal_lines_ne_sw {
+							if let Some(ans) = self.check(nw, se, ne, sw) {
+								break 'b ans;
+							}
+						}
+
+						diagonal_lines_nw_se.push([nw, se]);
+					}
 				}
-				// for n in start1..end1 {
-				// 	seen.insert(n);
-				// }
 			}
 
-			ranges.clear();
+			for [nw, se] in diagonal_lines_nw_se {
+				for &[ne, sw] in &diagonal_lines_ne_sw {
+					let b1 = nw[0] - nw[1];
+					let b2 = ne[0] + ne[1];
 
-			y += 1;
+					let y = (b2 + b1) / 2;
+					let x = (b2 - b1) / 2;
 
-			if cfg!(debug_assert) && y > search_space {
-				panic!("Didn't find beacon")
+					if (b2 + b1) % 2 != 0 {
+						continue;
+					}
+					if (b2 - b1) % 2 != 0 {
+						continue;
+					}
+
+					if (nw[0]..=se[0]).contains(&y)
+						&& (nw[1]..=se[1]).contains(&x)
+						&& (ne[0]..=sw[0]).contains(&y)
+						&& (sw[1]..=ne[1]).contains(&x)
+						&& (0..=self.search_space).contains(&y)
+						&& (0..=self.search_space).contains(&x)
+					{
+						break 'b [y, x];
+					}
+				}
 			}
+			panic!("No crossover found")
 		};
 
 		y as i64 + x as i64 * MULTIPLIER
 	}
+
 	fn run_any<W: std::fmt::Write>(
 		&mut self,
 		part: u32,
@@ -159,6 +235,26 @@ impl Solver for Solution {
 		match part {
 			_ => Err(AocError::PartNotFound),
 		}
+	}
+}
+
+impl Solution {
+	fn check(&self, nw: [i32; 2], se: [i32; 2], ne: [i32; 2], sw: [i32; 2]) -> Option<[A1; 2]> {
+		let b1 = nw[0] - nw[1];
+		let b2 = ne[0] + ne[1];
+
+		let y = (b2 + b1) / 2;
+		let x = (b2 - b1) / 2;
+
+		((b2 + b1) % 2 == 0
+			&& (b2 - b1) % 2 == 0
+			&& (nw[0]..=se[0]).contains(&y)
+			&& (nw[1]..=se[1]).contains(&x)
+			&& (ne[0]..=sw[0]).contains(&y)
+			&& (sw[1]..=ne[1]).contains(&x)
+			&& (0..=self.search_space).contains(&y)
+			&& (0..=self.search_space).contains(&x))
+		.then_some([y, x])
 	}
 }
 

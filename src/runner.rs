@@ -214,10 +214,10 @@ impl Settings {
 			let time_until_release = time_until_input_is_released(day);
 			// If the puzzle is very far out
 			if time_until_release > ChDuration::hours(1) {
-				eprintln!(
-					"Puzzle doesn't release for {:?}",
-					time_until_release.to_std().unwrap()
-				);
+				// eprintln!(
+				// 	"Puzzle doesn't release for {:?}",
+				// 	time_until_release.to_std().unwrap()
+				// );
 				return Err(AocError::HasNotReleasedYet {
 					day,
 					duration: time_until_release,
@@ -354,7 +354,7 @@ impl Settings {
 
 			let runs = if self.bench_count > 0 {
 				for _ in 0..self.bench_count {
-					let (time, p1, p2) = day_to_bench(day, file.clone(), self.debug)?;
+					let (time, p1, p2) = day_to_bench(day, black_box(file.clone()), self.debug)?;
 					(a1, a2) = black_box((p1, p2));
 					day_time += time;
 				}
@@ -365,7 +365,8 @@ impl Settings {
 				while start.elapsed() < Duration::from_millis(self.bench_time) {
 					runs += 10;
 					for _ in 0..10 {
-						let (time, p1, p2) = day_to_bench(day, file.clone(), self.debug)?;
+						let (time, p1, p2) =
+							day_to_bench(day, black_box(file.clone()), self.debug)?;
 						(a1, a2) = black_box((p1, p2));
 						day_time += time;
 					}
@@ -581,7 +582,10 @@ fn readable_time(duration: Duration, places: usize) -> String {
 		0 => format!("{:.places$}μs", duration.as_nanos() as f32 / 1e3),
 		1..=999 => format!("{:.places$}ms", duration.as_nanos() as f32 / 1e6),
 		1_000..=119_999 => format!("{:.places$}s", duration.as_nanos() as f32 / 1e9),
-		120_000.. => format!("{:.places$} minutes", duration.as_nanos() as f32 / 1e12),
+		120_000.. => format!(
+			"{:.places$} minutes",
+			duration.as_nanos() as f32 / 1e9 / 60.0
+		),
 	}
 }
 

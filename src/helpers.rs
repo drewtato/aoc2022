@@ -23,6 +23,9 @@ pub use multi_parse::*;
 mod input_data;
 pub use input_data::*;
 
+mod min_heap;
+pub use min_heap::*;
+
 /// Computes the triangular number.
 ///
 /// # Example

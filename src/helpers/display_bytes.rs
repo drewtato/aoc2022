@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DisplaySlice<T>(T);
+pub struct DisplaySlice<T>(pub T);
 
 impl<T> Display for DisplaySlice<T>
 where
@@ -52,7 +52,7 @@ impl<const N: usize> ToDisplaySlice for [u8; N] {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DisplayByte(u8);
+pub struct DisplayByte(pub u8);
 
 impl Display for DisplayByte {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

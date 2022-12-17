@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::hash::Hash;
+use std::ops::Deref;
 
 use crate::helpers::*;
 
@@ -14,6 +15,8 @@ pub struct Solution {
 	p2: A2,
 }
 
+type Room = DisplaySlice<[u8; 2]>;
+
 impl Solver for Solution {
 	type AnswerOne = A1;
 	type AnswerTwo = A2;
@@ -22,56 +25,62 @@ impl Solver for Solution {
 		let r = Regex::new(r"^Valve (\w+) has flow rate=(\d+); tunnels? leads? to valves? (.+)$")
 			.unwrap();
 
-		let mut map: HashMap<_, (u32, Vec<_>)> = HashMap::new();
 		let mut room_indexes = HashMap::new();
-		let mut reverse_room_indexes = Vec::new();
-		for line in file.trim_ascii().lines() {
-			// println!("{}", line.to_display_slice());
-			let caps = r
-				.captures(line)
-				.unwrap()
-				.iter()
-				.map(|c| c.unwrap().as_bytes())
-				.collect_vec();
+		let mut index_rooms = Vec::new();
 
-			let name = caps[1].to_display_slice();
-			reverse_room_indexes.push(name);
-			let index = reverse_room_indexes.len() - 1;
-			room_indexes.insert(name, index);
-
-			map.insert(
-				index,
-				(
-					caps[2].parse().unwrap(),
-					caps[3]
-						.split(|&b| b == b' ' || b == b',')
-						.filter(|p| !p.is_empty())
-						.map(|p| p.to_display_slice())
-						.collect(),
-				),
-			);
-		}
-
-		// dbg!(map);
-
-		let max_flow_per_minute = map.values().map(|&(flow, _)| flow).sum_self();
-		let max_total_flow = max_flow_per_minute * 30;
-		let map: HashMap<_, _> = map
-			.into_iter()
-			.map(|(room, (flow, connections))| {
-				let connections = connections
-					.into_iter()
-					.map(|room| room_indexes[&room])
+		let map: HashMap<usize, (u32, Vec<usize>)> = file
+			.trim_ascii()
+			.lines()
+			.map(|line| {
+				// println!("{}", line.to_display_slice());
+				let caps = r
+					.captures(line)
+					.unwrap()
+					.iter()
+					.map(|c| c.unwrap().as_bytes())
 					.collect_vec();
-				(room, (flow, connections))
+
+				let room = <[u8; 2]>::try_from(caps[1]).unwrap().to_display_slice();
+				let room = *room_indexes.entry(room).or_insert_with(|| {
+					index_rooms.push(room);
+					index_rooms.len() - 1
+				});
+
+				let flow_rate = caps[2].parse().unwrap();
+				let neighbors = caps[3]
+					.split(|&b| b == b' ' || b == b',')
+					.filter(|p| !p.is_empty())
+					.map(|p| {
+						let room = <[u8; 2]>::try_from(p).unwrap().to_display_slice();
+						let room = *room_indexes.entry(room).or_insert_with(|| {
+							index_rooms.push(room);
+							index_rooms.len() - 1
+						});
+						room
+					})
+					.collect();
+
+				(room, (flow_rate, neighbors))
 			})
 			.collect();
 
-		// dbg!(reverse_room_indexes, map);
+		let max_flow_per_minute = map.values().map(|&(flow, _)| flow).sum_self();
 
-		// let mut states = MinHeap::new();
-		// states.push();
-		// loop {}
+		let graph: HashMap<usize, Vec<(usize, u32)>> = map
+			.keys()
+			.map(|&room| {
+				let paths = find_all_paths(room, &map).collect();
+				(room, paths)
+			})
+			.collect();
+
+		for item in &graph {
+			dbg_small!(item);
+		}
+
+		let start = room_indexes[&b"AA".to_display_slice()];
+		// dbg_small!(start);
+		// dbg_small!(index_rooms);
 
 		Self {
 			p1: "Part 1 not implemented",
@@ -100,9 +109,26 @@ impl Solver for Solution {
 	}
 }
 
-struct State {
-	min_possible_flow: u32,
-	max_possible_flow: u32,
-	current_room: usize,
-	opened_valves: u64,
+fn find_all_paths(
+	start: usize,
+	map: &HashMap<usize, (u32, Vec<usize>)>,
+) -> impl Iterator<Item = (usize, u32)> + '_ {
+	let mut queue: VecDeque<(usize, u32)> = map[&start].1.iter().map(|&room| (room, 1)).collect();
+	let mut all_rooms = HashSet::new();
+	all_rooms.insert(start);
+
+	from_fn_iter(move || {
+		while let Some((room, distance)) = queue.pop_front() {
+			if !all_rooms.insert(room) {
+				continue;
+			}
+
+			for &next in &map[&room].1 {
+				queue.push_back((next, distance + 1));
+			}
+
+			return Some((room, distance));
+		}
+		None
+	})
 }

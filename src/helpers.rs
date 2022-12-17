@@ -1,16 +1,25 @@
-pub use crate::{AocError, Res, Solver};
-pub use itertools::Itertools;
-pub use regex::bytes::Regex;
-
 mod parse_bytes;
-pub use std::cmp::Reverse;
 use std::io::stdin;
-pub use std::num::Wrapping;
 use std::ops::{Add, AddAssign, Div, Mul};
 use std::str::FromStr;
 
-pub use ahash::{AHashMap as HashMap, AHashSet as HashSet, HashMapExt, HashSetExt};
+pub use crate::{AocError, Res, Solver};
+pub use itertools::Itertools;
+pub use regex::bytes::Regex;
+pub use std::array::{from_fn as from_fn_array, try_from_fn};
+pub use std::cmp::Reverse;
 pub use std::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque};
+pub use std::mem::{replace, swap, take};
+pub use std::num::Wrapping;
+pub use std::str::from_utf8;
+
+pub use ahash::{AHashMap as HashMap, AHashSet as HashSet, HashMapExt, HashSetExt};
+
+pub use std::iter::{
+	empty as empty_iter, from_fn as from_fn_iter, from_generator as gen_iter, once as once_iter,
+	once_with as once_with_iter, repeat as repeat_iter, repeat_with as repeat_with_iter,
+	successors,
+};
 
 pub use parse_bytes::*;
 

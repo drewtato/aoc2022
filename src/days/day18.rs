@@ -16,7 +16,6 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>, _: u8) -> Self {
-		let mut scan = HashSet::new();
 		let mut faces = 0;
 
 		let mut file = file.as_slice();
@@ -38,6 +37,10 @@ impl Solver for Solution {
 			})
 		});
 
+		let mut scan = HashSet::new();
+		let mut mins = [A1::MAX; 3];
+		let mut maxs = [A1::MIN; 3];
+
 		for point in lines.array_chunks() {
 			scan.insert(point);
 			for neighbor in ADJACENT {
@@ -51,6 +54,59 @@ impl Solver for Solution {
 				// 	-((scan.contains(&neighbor) as i32) * 2 - 1)
 				// );
 				faces += -(((scan.contains(&neighbor) as i32) << 1) - 1);
+			}
+			for ((a, min), max) in point.into_iter().zip(&mut mins).zip(&mut maxs) {
+				if a < *min {
+					*min = a;
+				} else if a > *max {
+					*max = a;
+				}
+			}
+		}
+
+		for p in &mut maxs {
+			*p += 1;
+		}
+
+		// let mut shrinkwrap = HashSet::new();
+
+		// for [point_idx, line_idx, plane_idx] in [[0, 1, 2], [0, 2, 1], [1, 2, 0]] {
+		// 	for plane in [mins[plane_idx], maxs[plane_idx] - 1] {
+		// 		for line in mins[line_idx]..maxs[line_idx] {
+		// 			for point in mins[point_idx]..maxs[point_idx] {
+		// 				let mut item = [0; 3];
+		// 				item[point_idx] = point;
+		// 				item[line_idx] = line;
+		// 				item[plane_idx] = plane;
+		// 				shrinkwrap.insert(item);
+		// 			}
+		// 		}
+		// 	}
+		// }
+
+		// let dimensions = [
+		// 	(mins[0]..maxs[0]).len(),
+		// 	(mins[1]..maxs[1]).len(),
+		// 	(mins[2]..maxs[2]).len(),
+		// ];
+		// let mut exposed_faces = (dimensions[0] * dimensions[1]
+		// 	+ dimensions[0] * dimensions[2]
+		// 	+ dimensions[1] * dimensions[2])
+		// 	* 2;
+
+		// let mut queue: VecDeque<_> = shrinkwrap.iter().copied().collect();
+		// while let Some(point) = queue.pop_front() {
+
+		// }
+
+		let starting_face = scan.iter().copied().find(|&[z, ..]| z == mins[0]).unwrap();
+		let starting_face = (starting_face, 0);
+		let mut queue: Vec<_> = [starting_face].into_iter().collect();
+		let mut seen_faces = HashSet::new();
+
+		while let Some(face) = queue.pop() {
+			if !seen_faces.insert(face) {
+				continue;
 			}
 		}
 

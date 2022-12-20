@@ -16,14 +16,39 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>, _: u8) -> Self {
-		let input: Vec<i32> = file
+		let mut input: Vec<i32> = file
 			.trim_ascii()
 			.lines()
-			.map(|line| line.trim_ascii().parse().unwrap())
+			.map(|line| line.parse().unwrap())
 			.collect();
 
+		let queue = input.clone();
+
+		// dbg!(input.iter().min().unwrap());
+		let len = input.len() - 1;
+
+		for n in queue {
+			let mut pos = input.iter().position(|&d| d == n).unwrap();
+			input.remove(pos);
+			let index = if n >= 0 {
+				(pos + len * 10 + n as usize) % len
+			} else {
+				(pos + len * 10 - (-n as usize)) % len
+			};
+			input.insert(index, n);
+			// dbg_small!(&input);
+		}
+
+		let zero_pos = input.iter().position(|&d| d == 0).unwrap();
+
+		let &a = input.iter().cycle().nth(1000 + zero_pos).unwrap();
+		let &b = input.iter().cycle().nth(2000 + zero_pos).unwrap();
+		let &c = input.iter().cycle().nth(3000 + zero_pos).unwrap();
+
+		dbg_small!(a, b, c);
+
 		Self {
-			p1: "Part 1 not implemented",
+			p1: a + b + c,
 			p2: "Part 2 not implemented",
 		}
 	}

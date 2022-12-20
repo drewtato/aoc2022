@@ -9,12 +9,11 @@ type A2 = i64;
 
 #[derive(Debug)]
 pub struct Solution {
-	p1: A1,
-	p2: A2,
+	input: Vec<u64>,
 }
 
 // const OFFSET: i32 = 1_000_000;
-const OFFSET: i64 = 811_589_153;
+const DECRYPTION_KEY: i64 = 811_589_153;
 const MASK: u64 = 0x00_00_00_00_ff_ff_ff_ff;
 const SHIFT: u32 = 32;
 
@@ -33,43 +32,37 @@ impl Solver for Solution {
 			})
 			.collect();
 
-		mix_once(&mut input);
+		Self { input }
+	}
+
+	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
+		let mut input = self.input.clone();
+
+		mix_once::<false>(&mut input);
 
 		let zero_pos = input.iter().position(|&d| d & MASK == 0).unwrap();
 
 		let a = input[(1000 + zero_pos) % input.len()] as u32 as i32 as i64;
 		let b = input[(2000 + zero_pos) % input.len()] as u32 as i32 as i64;
 		let c = input[(3000 + zero_pos) % input.len()] as u32 as i32 as i64;
-		dbg_small!(a, b, c);
-		for &n in &input {
-			print!("{}, ", (n & MASK) as u32 as i32);
-		}
-		println!();
 
-		for _ in 0..9 {
-			mix_once(&mut input);
+		a + b + c
+	}
+
+	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
+		let mut input = self.input.clone();
+
+		for _ in 0..10 {
+			mix_once::<true>(&mut input);
 		}
 
 		let zero_pos = input.iter().position(|&d| d & MASK == 0).unwrap();
 
-		let a2 = input[(1000 + zero_pos) % input.len()] as u32 as i32 as i64 * OFFSET;
-		let b2 = input[(2000 + zero_pos) % input.len()] as u32 as i32 as i64 * OFFSET;
-		let c2 = input[(3000 + zero_pos) % input.len()] as u32 as i32 as i64 * OFFSET;
+		let a = input[(1000 + zero_pos) % input.len()] as u32 as i32 as i64 * DECRYPTION_KEY;
+		let b = input[(2000 + zero_pos) % input.len()] as u32 as i32 as i64 * DECRYPTION_KEY;
+		let c = input[(3000 + zero_pos) % input.len()] as u32 as i32 as i64 * DECRYPTION_KEY;
 
-		// dbg_small!(a, b, c);
-
-		Self {
-			p1: a + b + c,
-			p2: a2 + b2 + c2,
-		}
-	}
-
-	fn part_one(&mut self, _: u8) -> Self::AnswerOne {
-		self.p1
-	}
-
-	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
-		self.p2
+		a + b + c
 	}
 
 	fn run_any<W: std::fmt::Write>(
@@ -85,15 +78,10 @@ impl Solver for Solution {
 	}
 }
 
-fn mix_once(input: &mut Vec<u64>) {
+fn mix_once<const PART2: bool>(input: &mut Vec<u64>) {
 	let len = input.len() - 1;
 
 	for i in 0..(input.len() as u64) {
-		for &n in &*input {
-			print!("{}, ", (n & MASK) as u32 as i32);
-		}
-		println!();
-		// dbg_small!(&input, i);
 		let mut pos = input
 			.iter()
 			.position(|&d| {
@@ -101,9 +89,9 @@ fn mix_once(input: &mut Vec<u64>) {
 				index == i
 			})
 			.unwrap();
-		dbg!(pos);
+
 		let real_n = (input[pos] & MASK) as u32 as i32 as i64;
-		let n = real_n * OFFSET;
+		let n = real_n * if PART2 { DECRYPTION_KEY } else { 1 };
 		let old = input.remove(pos);
 
 		let index = (pos as i64 + n).rem_euclid(len as i64) as usize;

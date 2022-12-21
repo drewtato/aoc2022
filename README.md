@@ -7,6 +7,10 @@ These are my Advent of Code solutions written in rust. Below are my global leade
 ```ruby
       --------Part 1--------   --------Part 2--------
 Day       Time   Rank  Score       Time   Rank  Score
+ 21   00:22:01   2277      0   00:43:48   1164      0
+ 20   00:58:28   1562      0   01:38:11   2040      0
+ 18   16:26:39  16802      0          -      -      -
+ 17   00:59:09   1340      0          -      -      -
  15   02:15:01   7271      0   03:12:41   5058      0
  14   00:18:46    539      0   00:21:13    413      0
  13   01:02:33   4338      0   01:10:29   3849      0

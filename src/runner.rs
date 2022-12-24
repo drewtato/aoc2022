@@ -347,7 +347,7 @@ impl Settings {
 			let mut a2 = String::new();
 
 			// Warmup
-			for _ in 0..100 {
+			for _ in 0..10 {
 				let (_, p1, p2) = day_to_bench(day, file.clone(), self.debug)?;
 				black_box((p1, p2));
 			}

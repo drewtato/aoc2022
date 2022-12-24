@@ -38,20 +38,17 @@ impl Solver for Solution {
 			[[0, 1], [1, 1], [-1, 1]],
 		];
 
-		let mut considerations: HashMap<[i32; 2], Option<[i32; 2]>> = HashMap::new();
+		let mut considerations: HashMap<[A1; 2], Option<[A1; 2]>> =
+			HashMap::with_capacity(elves.len());
 		let mut p1 = None;
 		let elf_count = elves.len();
 
 		let p2 = 'l: {
 			for i in 0.. {
-				if elves.len() != elf_count {
+				if cfg!(debug_assertions) && elves.len() != elf_count {
 					print_grove(&elves);
 					panic!("Elves multiplied on step {i}");
 				}
-				// if i % 100 == 0 {
-				// 	print_grove(&elves);
-				// 	read_value::<String>().unwrap();
-				// }
 
 				if i == 10 {
 					let (min_y, max_y) = elves.iter().map(|e| e[0]).minmax().into_option().unwrap();
@@ -60,7 +57,7 @@ impl Solver for Solution {
 					p1 = Some(p1_n);
 				}
 
-				let mut didnt_move = 0;
+				let mut moved = false;
 				for &elf in &elves {
 					let count = (-1..=1)
 						.flat_map(|y| (-1..=1).map(move |x| [y, x]))
@@ -68,9 +65,10 @@ impl Solver for Solution {
 						.count();
 					debug_assert!(count != 0);
 					if count == 1 {
-						didnt_move += 1;
 						continue;
 					}
+
+					moved = true;
 
 					for n in neighbors.iter().cycle().skip(i % 4).take(4) {
 						if n.iter().all(|&place| !elves.contains(&add(elf, place))) {
@@ -84,7 +82,7 @@ impl Solver for Solution {
 					}
 				}
 
-				if didnt_move == elves.len() {
+				if !moved {
 					break 'l i as A1 + 1;
 				}
 

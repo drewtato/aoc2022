@@ -179,6 +179,20 @@ pub trait Wrap: Sized {
 
 impl<T> Wrap for T where T: Sized {}
 
+pub fn add<T>(a: [T; 2], b: [T; 2]) -> [T; 2]
+where
+	T: Add<Output = T>,
+{
+	let [a1, a2] = a;
+	let [b1, b2] = b;
+	[a1 + b1, a2 + b2]
+}
+
+pub fn get_2d<T>(map: &[Vec<T>], point: [isize; 2]) -> Option<&T> {
+	map.get(point[0] as usize)
+		.and_then(|row| row.get(point[1] as usize))
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

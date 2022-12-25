@@ -1,14 +1,11 @@
-#![allow(unused)]
-
 use crate::helpers::*;
 
-type A1 = impl std::fmt::Display + std::fmt::Debug + Clone;
-type A2 = impl std::fmt::Display + std::fmt::Debug + Clone;
+type A1 = DisplaySlice<Vec<u8>>;
+type A2 = &'static str;
 
 #[derive(Debug)]
 pub struct Solution {
 	p1: A1,
-	p2: A2,
 }
 
 impl Solver for Solution {
@@ -16,15 +13,46 @@ impl Solver for Solution {
 	type AnswerTwo = A2;
 
 	fn initialize(file: Vec<u8>, _: u8) -> Self {
-		let input: Vec<i32> = file
+		let mut total_fuel: i64 = file
 			.trim_ascii()
 			.lines()
-			.map(|line| line.trim_ascii().parse().unwrap())
-			.collect();
+			.map(|line| {
+				let mut total = 0;
+				for c in line {
+					total *= 5;
+					total += match c {
+						b'2' => 2,
+						b'1' => 1,
+						b'0' => 0,
+						b'-' => -1,
+						b'=' => -2,
+						_ => panic!(),
+					}
+				}
+				total
+			})
+			.sum_self();
+
+		let mut p1 = Vec::new();
+		while total_fuel != 0 {
+			let frac = ((total_fuel + 2) % 5) - 2;
+			let c = match frac {
+				2 => b'2',
+				1 => b'1',
+				0 => b'0',
+				-1 => b'-',
+				-2 => b'=',
+				_ => panic!(),
+			};
+			total_fuel -= frac;
+			total_fuel /= 5;
+			p1.push(c);
+		}
+
+		p1.reverse();
 
 		Self {
-			p1: "Part 1 not implemented",
-			p2: "Part 2 not implemented",
+			p1: p1.to_display_slice(),
 		}
 	}
 
@@ -33,7 +61,7 @@ impl Solver for Solution {
 	}
 
 	fn part_two(&mut self, _: u8) -> Self::AnswerTwo {
-		self.p2.clone()
+		"🎄🌟🎈🌋🐒🐘"
 	}
 
 	fn run_any<W: std::fmt::Write>(

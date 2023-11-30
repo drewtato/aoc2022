@@ -1,7 +1,7 @@
 use crate::helpers::*;
 
-type A1 = impl std::fmt::Display;
-type A2 = impl std::fmt::Display;
+pub type A1 = impl std::fmt::Display;
+pub type A2 = impl std::fmt::Display;
 
 #[derive(Debug)]
 pub struct Solution {

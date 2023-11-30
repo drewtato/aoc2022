@@ -2,8 +2,8 @@
 
 use crate::helpers::*;
 
-type A1 = impl std::fmt::Display + std::fmt::Debug + Clone;
-type A2 = impl std::fmt::Display + std::fmt::Debug + Clone;
+pub type A1 = impl std::fmt::Display + std::fmt::Debug + Clone;
+pub type A2 = impl std::fmt::Display + std::fmt::Debug + Clone;
 
 #[derive(Debug)]
 pub struct Solution {

@@ -1,7 +1,7 @@
 use crate::helpers::*;
 
-type A1 = String;
-type A2 = String;
+pub type A1 = String;
+pub type A2 = String;
 
 #[derive(Debug)]
 pub struct Solution {

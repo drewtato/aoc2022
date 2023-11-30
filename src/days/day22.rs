@@ -2,8 +2,8 @@ use std::fmt::Display;
 
 use crate::helpers::*;
 
-type A1 = i64;
-type A2 = A1;
+pub type A1 = i64;
+pub type A2 = A1;
 
 #[derive(Debug)]
 pub struct Solution {

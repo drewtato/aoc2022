@@ -4,8 +4,8 @@ use std::convert::identity;
 
 use crate::helpers::*;
 
-type A1 = usize;
-type A2 = u64;
+pub type A1 = usize;
+pub type A2 = u64;
 
 #[derive(Debug)]
 pub struct Solution {

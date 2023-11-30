@@ -2,8 +2,8 @@ use std::ops::Range;
 
 use crate::helpers::*;
 
-type A1 = usize;
-type A2 = usize;
+pub type A1 = usize;
+pub type A2 = usize;
 
 #[derive(Debug)]
 pub struct Solution {
@@ -104,6 +104,7 @@ impl Solver for Solution {
 
 		// print_set_field(&set_field, 0, field.len(), 430, 530);
 
+		#[allow(clippy::single_range_in_vec_init)]
 		let mut sand_ranges = vec![500..501];
 		let mut current_sand_ranges = Vec::new();
 		let mut p2 = 1;

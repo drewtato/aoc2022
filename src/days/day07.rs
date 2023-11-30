@@ -2,8 +2,8 @@ use atoi::FromRadix10;
 
 use crate::helpers::*;
 
-type A1 = u32;
-type A2 = A1;
+pub type A1 = u32;
+pub type A2 = A1;
 
 #[derive(Debug)]
 pub struct Solution {
@@ -79,7 +79,9 @@ impl Solver for Solution {
 fn manual_method(file: Vec<u8>, working_sizes: &mut Vec<u32>, dir_sizes: &mut Vec<u32>) {
 	let mut file = file.as_slice();
 	loop {
-		let Some(&first) = file.first() else { break; };
+		let Some(&first) = file.first() else {
+			break;
+		};
 		let skip = match first {
 			b'$' => match file[2] {
 				b'c' => match file[5] {

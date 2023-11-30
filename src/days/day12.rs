@@ -1,7 +1,7 @@
 use crate::helpers::*;
 
-type A1 = u16;
-type A2 = A1;
+pub type A1 = u16;
+pub type A2 = A1;
 
 #[derive(Debug)]
 pub struct Solution {
@@ -54,7 +54,9 @@ impl Solver for Solution {
 
 		let mut p2_cost = None;
 		let cost = loop {
-			let Some((cost, [y, x])) = leads.pop_front() else { panic!("No path found") };
+			let Some((cost, [y, x])) = leads.pop_front() else {
+				panic!("No path found")
+			};
 
 			let v = &mut visited[width * y + x];
 			if *v {
@@ -65,9 +67,15 @@ impl Solver for Solution {
 
 			let current_height = file[width * y + x];
 			for [dy, dx] in [[-1, 0], [1, 0], [0, 1], [0, -1]] {
-				let Ok(ny) = (y as isize + dy).try_into() else { continue; };
-				let Ok(nx) = (x as isize + dx).try_into() else { continue; };
-				let Some(&neighbor_height) = file.get(width * ny + nx) else { continue; };
+				let Ok(ny) = (y as isize + dy).try_into() else {
+					continue;
+				};
+				let Ok(nx) = (x as isize + dx).try_into() else {
+					continue;
+				};
+				let Some(&neighbor_height) = file.get(width * ny + nx) else {
+					continue;
+				};
 				if current_height <= neighbor_height + 1 {
 					leads.push_back((cost + 1, [ny, nx]));
 				}

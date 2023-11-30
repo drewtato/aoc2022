@@ -1,7 +1,7 @@
 use crate::helpers::*;
 
-type A1 = i32;
-type A2 = i32;
+pub type A1 = i32;
+pub type A2 = i32;
 
 #[derive(Debug)]
 pub struct Solution {

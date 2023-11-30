@@ -2,8 +2,8 @@
 
 use crate::helpers::*;
 
-type A1 = u64;
-type A2 = A1;
+pub type A1 = u64;
+pub type A2 = A1;
 
 #[derive(Debug)]
 pub struct Solution {

@@ -16,7 +16,7 @@ pub use std::str::from_utf8;
 pub use ahash::{AHashMap as HashMap, AHashSet as HashSet, HashMapExt, HashSetExt};
 
 pub use std::iter::{
-	empty as empty_iter, from_fn as from_fn_iter, from_generator as gen_iter, once as once_iter,
+	empty as empty_iter, from_coroutine as gen_iter, from_fn as from_fn_iter, once as once_iter,
 	once_with as once_with_iter, repeat as repeat_iter, repeat_with as repeat_with_iter,
 	successors,
 };
@@ -193,6 +193,33 @@ pub fn get_2d<T>(map: &[Vec<T>], point: [isize; 2]) -> Option<&T> {
 		.and_then(|row| row.get(point[1] as usize))
 }
 
+pub use crate::dbg_small;
+/// New dbg macro modified from [`std::dbg`] that doesn't use alternate form.
+#[macro_export]
+macro_rules! dbg_small {
+    // NOTE: We cannot use `concat!` to make a static string as a format argument
+    // of `eprintln!` because `file!` could contain a `{` or
+    // `$val` expression could be a block (`{ .. }`), in which case the `eprintln!`
+    // will be malformed.
+    () => {
+        eprintln!("[{}:{}]", file!(), line!())
+    };
+    ($val:expr $(,)?) => {
+        // Use of `match` here is intentional because it affects the lifetimes
+        // of temporaries - https://stackoverflow.com/a/48732525/1063961
+        match $val {
+            tmp => {
+                eprintln!("[{}:{}] {} = {:?}",
+                    file!(), line!(), stringify!($val), &tmp);
+                tmp
+            }
+        }
+    };
+    ($($val:expr),+ $(,)?) => {
+        ($(dbg_small!($val)),+,)
+    };
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -230,31 +257,4 @@ mod tests {
 			[None,     None,     None],
 		]);
 	}
-}
-
-pub use crate::dbg_small;
-/// New dbg macro modified from [`std::dbg`] that doesn't use alternate form.
-#[macro_export]
-macro_rules! dbg_small {
-    // NOTE: We cannot use `concat!` to make a static string as a format argument
-    // of `eprintln!` because `file!` could contain a `{` or
-    // `$val` expression could be a block (`{ .. }`), in which case the `eprintln!`
-    // will be malformed.
-    () => {
-        eprintln!("[{}:{}]", file!(), line!())
-    };
-    ($val:expr $(,)?) => {
-        // Use of `match` here is intentional because it affects the lifetimes
-        // of temporaries - https://stackoverflow.com/a/48732525/1063961
-        match $val {
-            tmp => {
-                eprintln!("[{}:{}] {} = {:?}",
-                    file!(), line!(), stringify!($val), &tmp);
-                tmp
-            }
-        }
-    };
-    ($($val:expr),+ $(,)?) => {
-        ($(dbg_small!($val)),+,)
-    };
 }

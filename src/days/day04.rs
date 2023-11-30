@@ -1,8 +1,8 @@
 use crate::helpers::*;
 use crate::runner::time_fn;
 
-type A1 = i32;
-type A2 = i32;
+pub type A1 = i32;
+pub type A2 = i32;
 
 #[derive(Debug)]
 pub struct Solution {

@@ -7,8 +7,8 @@
 #![feature(iter_collect_into)]
 #![feature(get_many_mut)]
 #![feature(split_as_slice)]
-#![feature(iter_from_generator)]
-#![feature(generators)]
+#![feature(coroutines)]
+#![feature(iter_from_coroutine)]
 #![allow(clippy::uninlined_format_args)]
 
 pub const YEAR: u32 = 2022;

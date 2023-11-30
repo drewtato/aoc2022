@@ -29,9 +29,10 @@ impl Display for MultiParseError {
 
 /// Trait that parses iterators into collections.
 ///
-/// This works on any collection that implements [`MultiFromBytes`]. These include `Vec`, arrays, and
-/// tuples of length 0 to 12, when the item type or types in those collections implement
-/// [`FromBytes`]. This trait and `MultiFromBytes` are analogous to [`str::parse`] and [`FromStr`](std::str::FromStr).
+/// This works on any collection that implements [`MultiFromBytes`]. These include `Vec`, arrays,
+/// and tuples of length 0 to 12, when the item type or types in those collections implement
+/// [`FromBytes`]. This trait and `MultiFromBytes` are analogous to [`str::parse`] and
+/// [`FromStr`](std::str::FromStr).
 ///
 /// # Examples
 ///
@@ -89,15 +90,15 @@ impl<I: IntoIterator<Item = S>, S: AsRef<[u8]>> MultiParseBytes for I {
 	where
 		T: MultiFromBytes,
 	{
-		MultiFromBytes::multi_from_bytes(self.into_iter())
+		MultiFromBytes::multi_from_bytes(self)
 	}
 }
 
 /// Trait allowing a type to be built from an iterator of [`u8`].
 ///
 /// It is best to implement this trait for collections, and then use
-/// [`multi_parse`](MultiParseBytes::multi_parse) to invoke it. This is analogous to [`FromStr`](std::str::FromStr) and
-/// [`str::parse`].
+/// [`multi_parse`](MultiParseBytes::multi_parse) to invoke it. This is analogous to
+/// [`FromStr`](std::str::FromStr) and [`str::parse`].
 ///
 /// # Examples
 /// ```ignore

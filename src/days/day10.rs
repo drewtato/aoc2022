@@ -1,7 +1,7 @@
 use crate::helpers::*;
 
-type A1 = i32;
-type A2 = &'static str;
+pub type A1 = i32;
+pub type A2 = &'static str;
 
 #[derive(Debug)]
 pub struct Solution {

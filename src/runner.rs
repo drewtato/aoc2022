@@ -1,5 +1,6 @@
 use chrono::{Duration as ChDuration, FixedOffset, NaiveDate, Utc};
-use clap::{ArgAction, Parser, ValueEnum};
+use clap::{ArgAction, Command, Parser, ValueEnum};
+use clap_complete::Shell;
 use itertools::Itertools;
 use regex::bytes::Regex;
 use reqwest::blocking::Client;
@@ -8,7 +9,7 @@ use std::borrow::Cow;
 use std::fmt::Display;
 use std::fs::{create_dir_all, File};
 use std::hint::black_box;
-use std::io::BufWriter;
+use std::io::{stdout, BufWriter};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -82,6 +83,9 @@ pub struct Settings {
 	pub client: Option<Client>,
 	#[arg(skip = None)]
 	pub regex: Option<Regex>,
+
+	#[arg(long)]
+	pub completions: Option<Shell>,
 }
 
 /// Mode to run [`Settings`] in.
@@ -115,6 +119,14 @@ macro_rules! debug_println {
 
 impl Settings {
 	pub fn run(&mut self) -> Res<()> {
+		if let Some(shell) = self.completions {
+			use clap::CommandFactory;
+			let mut cmd: Command = Self::command();
+			let bin_name = cmd.get_name().to_string();
+			clap_complete::generate(shell, &mut cmd, bin_name, &mut stdout());
+			return Ok(());
+		}
+
 		let runner_time = Instant::now();
 		let mut solver_time = Duration::ZERO;
 
